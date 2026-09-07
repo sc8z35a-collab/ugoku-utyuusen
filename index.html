@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#0c1519">
+  <meta name="description" content="2041年、カイトと中古宇宙船B-29の静かな旅。一人称3D宇宙生活シミュレーション。">
+  <title>B-29 — まだ見ぬ、静けさへ。</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;500;600;700&family=Noto+Sans+JP:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <main id="universe" aria-label="B-29 一人称宇宙探索ゲーム"><canvas id="space-canvas" aria-label="3Dの宇宙船内。画面をドラッグして視点を操作"></canvas></main>
+  <div class="grain" aria-hidden="true"></div>
+  <header class="topbar">
+    <a class="brand" href="./" aria-label="B-29 ホーム"><span class="brand-icon">✳</span><strong>B–29</strong><span class="brand-tag">A QUIET SPACE ODYSSEY</span></a>
+    <div class="top-status"><span class="live-dot"></span><span id="network-label">地球軌道 / 5G 接続中</span><span class="header-divider"></span><span class="date-label" id="date-label">2041.06.01</span></div>
+    <button class="icon-button" id="sound-toggle" title="環境音を切り替える" aria-label="環境音を切り替える">♪ <span>OFF</span></button>
+    <button class="icon-button" id="help-toggle" title="操作ガイド" aria-label="操作ガイド">?</button>
+  </header>
+  <section id="welcome" class="welcome" aria-label="旅のはじまり">
+    <div class="intro-copy">
+      <p class="eyebrow"><span class="little-line"></span> INDEPENDENT VESSEL · EST. 2041</p>
+      <p class="intro-index">航海記録 <span>001</span> <i>—</i> 地球を離れる日</p>
+      <h1>まだ見ぬ、<br>静けさへ<span class="title-dot">。</span></h1>
+      <p class="intro-description">全財産で買った、中古の宇宙船。<br>一杯のコーヒーと、少しおせっかいなAI。<br>行き先は、まだ決めなくていい。</p>
+      <button id="start-button" class="start-button" disabled><span id="start-label">宇宙船を準備しています</span><span class="start-arrow">↗</span></button>
+      <p class="start-caption"><span class="small-dot"></span> ミッションのない、あなただけの宇宙生活</p>
+      <button id="reset-button" class="text-button" hidden>航海を最初からやり直す</button>
+    </div>
+    <aside class="orbital-tag"><span class="target-bracket">⌖</span><div><strong>EARTH</strong><p>地球 / 出発の場所</p><span>LOW EARTH ORBIT</span></div></aside>
+    <div class="ship-caption"><span class="caption-rule"></span><span>B–29 / COCKPIT VIEW</span><span class="caption-coordinates">35° 41′ N &nbsp; 139° 41′ E</span></div>
+    <footer class="welcome-footer"><div class="vessel-spec"><span class="spec-label">YOUR VESSEL</span><strong>B–29 <small>軽巡航船</small></strong></div><div class="vessel-spec"><span class="spec-label">CAPTAIN</span><strong>カイト <small>21歳</small></strong></div><div class="vessel-spec"><span class="spec-label">COMPANION</span><strong>アスファルト <span class="live-dot"></span></strong></div><div class="vessel-spec reactor-spec"><span class="spec-label">REACTOR ENDURANCE</span><strong>10 <small>YEARS / 無給電航行</small></strong></div><button class="footer-guide" id="welcome-guide">操作ガイド <span>↗</span></button></footer>
+  </section>
+  <section id="game-hud" class="game-hud hidden" aria-label="航行情報">
+    <div class="location-badge"><span class="live-dot"></span><span id="location-label">コックピット</span><span id="mode-label">CABIN / 01</span></div>
+    <div class="telemetry"><div><span>O₂</span><strong id="oxygen-value">100<small>%</small></strong></div><div><span>HULL</span><strong id="hull-value">100<small>%</small></strong></div><div><span>DRIFT</span><strong id="speed-value">0.2<small>m/s</small></strong></div></div>
+    <div id="crosshair" aria-hidden="true"><i></i></div>
+    <div class="interaction-hint" id="interaction-hint"></div>
+    <div id="asphalt-message" class="asphalt-message"><span class="ai-symbol">✳</span><div><span class="ai-name">ASPHALT <i>船内AI</i></span><p id="ai-text"></p></div></div>
+    <div class="bottom-caption"><span id="journey-time">DAY 01 · 00:00</span><span id="save-label">自動保存</span></div>
+    <div class="keyboard-hint">W A S D 移動 <b>·</b> ドラッグ 見回す <b>·</b> E 使う <b>·</b> Q 立つ / 座る <b>·</b> H ガイド</div>
+    <div id="move-pad" class="move-pad" aria-label="移動スティック"><span class="pad-ring"></span><span class="pad-dot" id="pad-dot"></span><span class="pad-label">MOVE</span></div>
+    <div class="touch-actions"><button id="rise-button" aria-label="船外で上昇">↑</button><button id="descend-button" aria-label="船外で下降">↓</button><button id="seat-button" title="立つ・座る">立つ</button><button id="use-button" class="use-button" aria-label="対象を使う">使う <span>↗</span></button></div>
+    <div class="look-label">DRAG TO LOOK</div>
+    <button id="external-exit" class="external-exit hidden">船内視点に戻る ↙</button>
+    <div id="coffee-cup" class="coffee-cup hidden"><span class="steam">∿ ∿ ∿</span><div class="cup-body">B–29</div><div class="cup-handle"></div></div>
+    <div id="visor" class="visor hidden"><div class="visor-top">EVA SUIT / B–29 <span id="suit-air">O₂ 60:00</span></div></div>
+  </section>
+  <dialog id="guide-dialog">
+    <form method="dialog"><button class="dialog-close" aria-label="ガイドを閉じる">×</button></form>
+    <p class="eyebrow">B–29 / OWNER’S MANUAL</p><h2>急がなくて、大丈夫。</h2><p class="guide-intro">目的地も、締め切りもありません。まずは窓の外を。</p>
+    <div class="guide-grid"><article><span>01 / 歩く・眺める</span><p>スマホは横画面がおすすめ。左スティックで移動、何もない場所を右手でドラッグして見回します。PCはWASD＋ドラッグ。操縦席からは「立つ」またはQ。</p></article><article><span>02 / 船に触れる</span><p>モニターのボタンを直接タップ。物は近づいてタップ、または中央に合わせ「使う」／E。操縦席・リビング・浴室のモニターで航行・船体・記録を操作できます。</p></article><article><span>03 / 小さな日常</span><p>左舷ラウンジでコーヒー、右舷でシャワー。中央の床下ハッチから配管層へ。後部に宇宙服とエアロック。ハッチや機器は縁の発光を目印に。</p></article><article><span>04 / 傷と暮らす</span><p>小惑星は実際に飛来します。赤い損傷部へ行き、修理キットで軽傷を修復。中・大規模は応急封止だけ。船体のへこみは残り、封止も劣化します。配管損傷は床下から直せます。</p></article><article><span>05 / 船外と空気</span><p>宇宙服を着て後部エアロックから外へ。スティック／WASDと上下ボタン／R・Fで自由飛行。外からも傷を封止できます。酸素が危険なら後部の避難室へ入り、隔壁を閉じてください。</p></article><article><span>06 / あなたの航海</span><p>航海・損傷・修理資材はこのブラウザーに自動保存。時間は現実と等速。基地帰還は10日分のプレイ時間が必要で、即時修復はできません。モニターの「試験衝突」で損傷を体験できます。</p></article></div>
+    <p class="guide-note">ブラウザー向け体験版 · 物理・気圧は簡略モデルです。アスファルトは状態連動の船内AIです。音は右上の ♪ で切り替えられます。</p>
+    <button id="fullscreen-button" class="secondary-button">全画面で表示 ↗</button>
+  </dialog>
+  <div id="rotate-notice"><span>⤾</span><p>横にすると、宇宙が広がる。</p><small>横画面でのプレイがおすすめです</small><button id="rotate-dismiss">このまま見る →</button></div>
+  <div id="loading-error" class="hidden" role="alert"></div>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.160.1/build/three.min.js"></script>
+  <script src="js/world.js"></script>
+  <script src="js/game.js"></script>
+</body>
+</html>
