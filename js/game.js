@@ -266,11 +266,25 @@
       W.camera.position.copy(player);W.camera.lookAt(W.ship.localToWorld(new T.Vector3(0,1.25,15.48)));W.renderer.render(W.scene,W.camera);check('Interior airlock door is unobstructed',getHit()?.object.userData.action==='airlock');
       act('safe');check('Sealed rear compartment independently safe',insideSafe());check('Closed bulkhead blocks walking',!canWalk(0,11.9));act('safe');act('suit');
       act('coffee');check('Coffee makes a persistent journal entry',state.coffee===1&&state.logs.some(l=>l.text.includes('コーヒー')));act('shower');check('Shower activates visible 3D water',W.showerDrops.visible);act('shower');
+      // Close-range rays must still reach usable objects after decorative detailing.
+      function checkReach(name,pos,target,action){player.fromArray(pos);W.camera.position.copy(player);W.camera.lookAt(W.ship.localToWorld(new T.Vector3(...target)));W.scene.updateMatrixWorld(true);check(name,getHit()?.object.userData.action===action);}
+      checkReach('Detailed coffee station stays reachable',[-1.65,1.5,2.2],[-2.65,1.1,1.6],'coffee');
+      checkReach('Lounge monitor mount does not block screen',[-1.3,1.62,3.3],[-3.04,1.93,3.4],null);
+      checkReach('Bathroom monitor stays reachable',[2.55,1.62,4],[3.03,1.83,4.8],null);
+      checkReach('Shower mixer stays reachable',[2.5,1.62,2.8],[3.07,1.05,3],'shower');
+      checkReach('Repair kit remains unobstructed',[1.25,1.62,9.2],[1.99,.3,9.35],'kit');
+      checkReach('Detailed EVA suit stays reachable',[1.4,1.62,13.3],[2.45,1.3,12.75],'suit');
+      checkReach('Berth control stays reachable',[-1.7,1.62,8.7],[-2.44,.72,8.7],'rest');
+      state.layer='pipes';for(let i=0;i<W.pipeNodes.length;i++){const node=W.pipeNodes[i];checkReach('Pipe valve '+(i+1)+' stays reachable',[0,-1.3,node.position.z],node.position.toArray(),'pipe');}state.layer='cabin';
+      check('Detail atlas stays within one texture',W.detailStats.atlasTiles>20&&W.detailStats.atlasTiles<=64);
+      check('Procedural reflections and shadows enabled',W.scene.environment&&W.renderer.shadowMap.enabled);
+      check('Central passage remains clear after detailing',[2,4,6,8,10].every(z=>canWalk(0,z)));
       spawnImpact(true);for(let i=0;i<195;i++)simulate(.05);check('Moving asteroid physically collides',state.damages.length===1&&impactors.length===0);check('Impact leaks cabin oxygen',state.oxygen<100);check('Impact alters actual hull vertices',W.hull.some(m=>m.geometry.attributes.position.array.some((v,i)=>Math.abs(v-m.userData.original[i])>.001)));
       if(state.damages.length){const d=state.damages[0];act('kit');act('damage',{userData:{damage:d.id}});check('Medium damage can only be sealed, not removed',d.sealed&&!d.fixed&&state.kits===11);act('pipe',W.pipeNodes[d.node]);check('On-site pipe repair restores circuit',d.pipeFixed&&state.kits===10);d.sealLife=.01;simulate(.05);check('Temporary repair deteriorates with time',!d.sealed);const roundTrip=JSON.parse(JSON.stringify(state));check('Damage and repair inventory serialize',roundTrip.damages.length===1&&roundTrip.kits===10);}
       W.restoreHull();state=fresh();W.ship.position.set(0,0,0);W.ship.rotation.set(0,0,0);player.set(0,1.65,-1.15);yaw=0;pitch=.075;W.safeDoor.position.x=1.95;coffeeTime=0;$('coffee-cup').classList.add('hidden');updateMode();drawScreens();
     }
     if(testMode){start();if(testMode==='cabin'){state.seated=false;player.set(0,1.62,1.6);yaw=Math.PI;pitch=-.06;}if(testMode==='pipes'){state.layer='pipes';state.seated=false;player.set(0,-1.3,4.4);yaw=0;pitch=0;}if(testMode==='external'){toggleExternal(true);}if(testMode==='damage'){toggleExternal(true);spawnImpact(true);for(let i=0;i<200;i++)simulate(.05);externalYaw=state.damages[0]?.pos[0]>0?1.05:-1.05;externalPitch=.08;}updateMode();}
+    W.diagnostics=assertions;
     console.log('B29 CHECKS '+assertions.filter(a=>a.pass).length+'/'+assertions.length);
   }
 })();
