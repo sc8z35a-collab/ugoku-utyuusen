@@ -6,7 +6,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const { chromium } = require(process.env.PLAYWRIGHT_MODULE || 'playwright');
 const base = process.env.BASE_URL || 'http://localhost:3000/';
-const output = path.resolve(__dirname, '../artifacts');
+const output = path.resolve(__dirname, '..', process.env.OUTPUT_DIR || 'artifacts');
 fs.mkdirSync(output, { recursive: true });
 const views = [
   ['cockpit', [0, 1.65, -1.15], [0, 1.9, -7]],
@@ -36,9 +36,9 @@ const views = [
 ];
 const errors = [], report = { base, checks: [], screenshots: [], devices: [] };
 function watch(page) {
-  page.on('pageerror', error => errors.push(error.message));
+  page.on('pageerror', error => { errors.push(error.message); console.error('PAGE ERROR', error.message); });
   page.on('console', message => {
-    if (message.type() === 'error') errors.push(message.text());
+    if (message.type() === 'error') { errors.push(message.text()); console.error('CONSOLE ERROR', message.text()); }
   });
 }
 function deterministicFrames() {
@@ -63,11 +63,29 @@ async function capture(page, name) {
   try {
     const page = await browser.newPage({ viewport: { width: 1280, height: 800 } });
     watch(page); await page.addInitScript(deterministicFrames);
-    await page.goto(new URL('?check=1&view=test', base).href, { waitUntil: 'domcontentloaded' });
-    await page.waitForFunction(() => window.B29?.diagnostics?.length >= 47);
-    report.checks = await page.evaluate(() => B29.diagnostics);
+    await page.goto(new URL('?check=1&view=test', base).href, { waitUntil: 'domcontentloaded', timeout: 180000 });
+    await page.waitForFunction(() => window.B29?.diagnostics?.length >= 47, null, { timeout: 180000, polling: 1000 });
+    report.checks = await page.evaluate(() => {
+      const checks=[...B29.diagnostics];
+      if(B29.render){
+        B29.scene.updateMatrixWorld(true);
+        const visible=B29.monitors.every(m=>{
+          const center=m.screen.getWorldPosition(new THREE.Vector3());
+          const normal=new THREE.Vector3(0,0,1).applyQuaternion(m.screen.getWorldQuaternion(new THREE.Quaternion()));
+          const ray=new THREE.Raycaster(center.clone().addScaledVector(normal, .25),normal.negate(),0,.3);
+          ray.camera=B29.camera;
+          const solid=ray.intersectObjects(B29.ship.children,true).find(hit=>{
+            for(let p=hit.object;p;p=p.parent)if(!p.visible)return false;
+            return hit.object.isMesh&&!hit.object.material.transparent;
+          });
+          return solid?.object===m.screen;
+        });
+        checks.push({name:'All six screen faces are visibly in front of their bezels',pass:visible});
+      }
+      return checks;
+    });
     console.log(`CHECKS ${report.checks.filter(check => check.pass).length}/${report.checks.length}`);
-    assert.deepEqual(report.checks.filter(check => !check.pass), [], 'Physical regression failure');
+    console.log('FAILED CHECKS', JSON.stringify(report.checks.filter(check => !check.pass)));
     await page.evaluate(() => {
       document.querySelector('#game-hud').style.display = 'none';
       document.querySelector('.topbar').style.display = 'none';
@@ -76,16 +94,36 @@ async function capture(page, name) {
       await page.evaluate(({ position, target }) => {
         B29.camera.position.set(...position); B29.camera.lookAt(new THREE.Vector3(...target));
         B29.chair.visible = true; B29.scene.updateMatrixWorld(true);
-        B29.renderer.render(B29.scene, B29.camera);
+        if (B29.render) B29.render(); else B29.renderer.render(B29.scene, B29.camera);
       }, { position, target });
       await capture(page, name);
       assert.equal(await page.evaluate(() => B29.renderer.getContext().getError()), 0, `${name}: WebGL error`);
+    }
+    if (await page.evaluate(() => !!B29.testActions)) {
+      const mechanismViews = [
+        ['brewing', [-2,1.55,2.25], [-2.65,1.1,1.65], 'coffee'],
+        ['hatch-open', [0,1.62,3.4], [0,-.3,4.6], 'hatch'],
+        ['bulkhead-closed', [0,1.62,10.1], [0,1.35,11.9], 'safe'],
+        ['shower-running', [2.25,1.65,2.4], [2.7,1.4,3], 'shower'],
+        ['engine-thrust', [4,1,23], [-.5,-.6,17], 'thrust']
+      ];
+      for (const [name, position, target, action] of mechanismViews) {
+        await page.evaluate(({ position, target, action }) => {
+          if (action === 'thrust') B29.testActions.state().speed=2;
+          else B29.testActions.act(action);
+          const s=B29.testActions.state();
+          B29.updateMechanisms(action==='coffee'?.1:2,12,{safe:s.safe,layer:s.layer,speed:s.speed,faults:[]});
+          B29.coffeeGroup.visible=false;
+          B29.camera.position.set(...position);B29.camera.lookAt(new THREE.Vector3(...target));B29.scene.updateMatrixWorld(true);B29.render();
+        }, { position, target, action });
+        await capture(page, name);
+      }
     }
     await page.close();
     for (const [device, width, height, touch] of [['desktop', 1440, 900, false], ['phone-landscape', 844, 390, true], ['phone-portrait', 390, 844, true]]) {
       const context = await browser.newContext({ viewport: { width, height }, hasTouch: touch, isMobile: touch, deviceScaleFactor: 1 });
       const p = await context.newPage(); watch(p); await p.addInitScript(deterministicFrames);
-      await p.goto(new URL('?check=1', base).href, { waitUntil: 'domcontentloaded' });
+      await p.goto(new URL('?check=1', base).href, { waitUntil: 'domcontentloaded', timeout: 180000 });
       await p.waitForFunction(() => window.B29 && !document.querySelector('#start-button').disabled);
       await p.evaluate(() => { document.querySelector('#rotate-dismiss').click(); window.__step(); });
       await capture(p, `${device}-welcome`);
@@ -118,10 +156,12 @@ async function capture(page, name) {
       report.devices.push({ device, width, height, movement: true, look: true, guide: true });
       await context.close();
     }
+    assert.deepEqual(report.checks.filter(check => !check.pass), [], 'Physical regression failure');
     assert.deepEqual(errors, [], 'Browser errors');
     console.log(`PASS ${report.checks.length} physics checks, ${report.screenshots.length} screenshots, ${report.devices.length} device layouts`);
   } finally {
     report.errors = errors; fs.writeFileSync(path.join(output, 'visual-report.json'), JSON.stringify(report, null, 2));
+    fs.writeFileSync(path.join(output,'index.html'),`<!doctype html><html lang="ja"><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>B–29 / Visual review</title><style>body{background:#0d1b22;color:#d1dcca;font:15px system-ui;margin:32px}h1{font-weight:400}main{display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:24px}figure{margin:0}img{width:100%;border-radius:8px}figcaption{padding:10px 0;color:#aac5be}a{color:inherit}</style><h1>B–29 / 実画面プレビュー</h1><p>${report.checks.filter(c=>c.pass).length}/${report.checks.length} checks · ${report.screenshots.length} views</p><main>${report.screenshots.map(name=>`<figure><a href="${name}.png"><img loading="lazy" src="${name}.png" alt="${name}"></a><figcaption>${name}</figcaption></figure>`).join('')}</main></html>`);
     await browser.close();
   }
 })().catch(error => { console.error(error); process.exitCode = 1; });

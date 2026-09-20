@@ -31,16 +31,18 @@
   // Canvas is a texture on an actual 3D monitor; all hit regions live in its UV space.
   function drawMonitor(m){
     const c=m.canvas.getContext('2d'),w=1024,h=640;m.zones=[];
-    c.fillStyle='#101d23';c.fillRect(0,0,w,h);
+    const backdrop=c.createLinearGradient(0,0,w,h);backdrop.addColorStop(0,'#112c32');backdrop.addColorStop(1,'#07191f');c.fillStyle=backdrop;c.fillRect(0,0,w,h);
+    c.strokeStyle='#97d1c108';c.lineWidth=1;for(let x=0;x<w;x+=32){c.beginPath();c.moveTo(x,144);c.lineTo(x,h);c.stroke();}for(let y=152;y<h;y+=32){c.beginPath();c.moveTo(0,y);c.lineTo(w,y);c.stroke();}
     for(let y=0;y<h;y+=4){c.fillStyle='#7ba3a003';c.fillRect(0,y,w,1);}
     const txt=(t,x,y,size=22,color='#b6c7c4',font='monospace')=>{c.fillStyle=color;c.font=`${size}px ${font}`;c.textAlign='left';c.fillText(t,x,y);};
     const line=(x,y,ww)=>{c.fillStyle='#b0c9bc25';c.fillRect(x,y,ww,1);};
-    function button(text,x,y,ww,hh,action,active=false){c.fillStyle=active?'#b9cfa1':'#26383c';c.fillRect(x,y,ww,hh);c.strokeStyle=active?'#b9cfa1':'#54736d';c.strokeRect(x+.5,y+.5,ww-1,hh-1);txt(text,x+18,y+hh/2+8,22,active?'#18251e':'#d0dacb','sans-serif');m.zones.push({x,y,w:ww,h:hh,action});}
+    function button(text,x,y,ww,hh,action,active=false){c.beginPath();c.roundRect(x,y,ww,hh,5);c.fillStyle=active?'#a9c9b0':'#1b363f';c.fill();c.strokeStyle=active?'#cde1be':'#3e646a';c.lineWidth=1;c.stroke();c.fillStyle=active?'#284c43':'#76c5b1';c.fillRect(x+1,y+9,3,hh-18);txt(text,x+18,y+hh/2+8,22,active?'#142f2a':'#c6d8d0','sans-serif');m.zones.push({x,y,w:ww,h:hh,action});}
     txt('B–29',34,48,34,'#d6decb');txt('/  ASPHALT OS 2.4',157,46,19,'#819fa0');txt(network()?'● 5G CONNECTED':'○ OFFLINE',730,45,17,network()?'#b9cfa1':'#d9a47a');line(32,72,960);
     const tabs=[['航行','home'],['船体・空気','systems'],['暮らし','life'],['航海記録','log']];tabs.forEach((t,i)=>button(t[0],32+i*242,88,232,46,()=>{m.page=t[1];drawScreens();},m.page===t[1]));
     const broken=serverFault()&&m.id==='aux';
     if(broken){txt('LOCAL SERVER / SIGNAL LOST',55,248,32,'#e1a184');txt('中央モニターで予備サーバーへ切替可能',55,310,26,'#a8bbb9','sans-serif');}
     else if(m.page==='home'){
+      c.save();c.translate(613,211);c.strokeStyle='#83b5a742';c.lineWidth=1;for(const r of [25,43]){c.beginPath();c.ellipse(0,0,r,r*.55,-.3,0,Math.PI*2);c.stroke();}c.fillStyle='#bad2b4';c.beginPath();c.arc(0,0,6,0,Math.PI*2);c.fill();c.fillStyle='#d9a767';c.beginPath();c.arc(35,-15,3,0,Math.PI*2);c.fill();c.restore();
       txt('FLIGHT CONTROL',38,182,18,'#8ba3a5');txt('行き先は、まだ決めなくていい。',38,226,28,'#d4dfd0','sans-serif');
       txt(state.speed.toFixed(1),46,327,77,'#bbd1ab');txt('m/s  相対漂流速度',240,322,20);txt('DAY '+String(day()).padStart(2,'0'),725,205,31,'#d4dfd0');txt(formatTime(state.age%86400),748,242,23);
       button('− 減速',38,358,215,58,()=>{state.speed=Math.max(0,state.speed-.2);say('推力を絞りました。ゆっくりで、いいんです。',6);});
@@ -63,7 +65,7 @@
       txt('HABITAT / SLOW LIVING',38,185,18,'#8ba3a5');txt('ひとり。けれど、ひとりではない。',38,238,29,'#d0ddc9','sans-serif');
       txt('淹れたコーヒー  '+state.coffee+' 杯',38,298,23,'#b6c7c4','sans-serif');txt('水循環 '+(pipeFaults().length?'要点検':'98%')+'  /  修理キット '+(state.hasKit?'携行中':'後部エンジニア区画'),38,341,22,'#b6c7c4','sans-serif');
       txt(state.suit?'宇宙服装着中 / 残り酸素 '+suitTime(state.suitAir):'宇宙服は後部エアロックにあります。',38,382,22,'#c1cda8','sans-serif');
-      button('アスファルト、話して',38,422,460,60,()=>chat());button('照明 / 夜間モード',514,422,470,60,()=>{W.lamps.forEach(l=>l.intensity=l.intensity>5?3:14);say('船内照明を調整しました。好きな明るさで、お過ごしください。');});
+      button('アスファルト、話して',38,422,460,60,()=>chat());button('照明 / 夜間モード',514,422,470,60,()=>{W.lamps.forEach(l=>l.intensity=l.intensity>5?3:l.userData.dayIntensity);say('船内照明を調整しました。好きな明るさで、お過ごしください。');});
       button('静かに休む / そのまま眺める',38,502,946,52,()=>{resting=!resting;say(resting?'ここにいます。何かあれば、起こします。':'おかえりなさい、カイト。',8);});
     }else{
       txt('CAPTAIN’S LOG / KAITO, 21',38,181,18,'#8ba3a5');txt('2041.05.10 / 中古宇宙船 B-29 を購入。',38,230,24,'#c8d5be','sans-serif');txt('全財産を投じた、小学生のころからの夢。',38,269,22,'#9eb5b0','sans-serif');txt('2041.06.01 / ひとりで乗り組み、地球を出発。',38,310,22,'#9eb5b0','sans-serif');line(38,334,946);
@@ -94,7 +96,7 @@
   let externalYaw=.55,externalPitch=.28;
   function act(action,object){
     if(action==='seat'){seat();return;}
-    if(action==='coffee'){if(state.suit){say('ヘルメットを着けたままでは飲めません。安全な部屋で宇宙服を脱いでから、どうぞ。');return;}if(pipeFaults().length){say('給水配管に異常があります。床下の点検をお願いします。');return;}state.coffee++;coffeeTime=35;W.coffeeGroup.visible=!external;say('コーヒーが入りました。地球を見ながら、どうぞ。熱いので、気をつけて。');log('コーヒーを淹れた。'+state.coffee+'杯目。');}
+    if(action==='coffee'){if(state.suit){say('ヘルメットを着けたままでは飲めません。安全な部屋で宇宙服を脱いでから、どうぞ。');return;}if(pipeFaults().length){say('給水配管に異常があります。床下の点検をお願いします。');return;}state.coffee++;coffeeTime=35;W.triggerMechanism('coffee');W.coffeeGroup.visible=!external;say('コーヒーが入りました。地球を見ながら、どうぞ。熱いので、気をつけて。');log('コーヒーを淹れた。'+state.coffee+'杯目。');}
     if(action==='shower'){if(pipeFaults().length){say('配管が損傷しています。いまは水を循環できません。');return;}shower=!shower;W.showerDrops.visible=shower;say(shower?'温水を循環します。使用した水の98%は、また戻ってきます。':'シャワーを停止しました。',9);}
     if(action==='hatch'){if(state.suit){say('宇宙服では床下の狭い通路に入れません。エアロックで脱いでください。');return;}state.seated=false;if(state.layer==='pipes'){state.layer='cabin';player.set(0,1.62,5.4);say('居住層です。空が見えるところへ戻りました。',7);}else{state.layer='pipes';player.set(0,-1.3,4.4);pitch=0;yaw=0;say('配管層に入りました。左右の LINE 01〜06 が点検箇所です。異常系統はモニターでも確認できます。',13);}updateMode();}
     if(action==='kit'){if(!state.hasKit){state.hasKit=true;say('修理キットを携行しました。残り'+state.kits+'回分。損傷箇所へ近づいて、直接使ってください。');log('修理キットを携行。');}else say('修理キットは携行中です。残り'+state.kits+'回分。基地以外では補充できません。');}
@@ -104,7 +106,7 @@
       else {if(!state.suit){say('宇宙服を着用してください。右側の白いスーツです。外は、空気のない場所です。');return;}if(state.suitAir<60){say('宇宙服の酸素が足りません。安全な船内で補充してからにしましょう。');return;}state.seated=false;state.layer='eva';player.set(0,1.65,17.6);yaw=0;pitch=0;say('船外活動を開始。上下操作で自由飛行できます。帰船口はエンジンの間、オレンジのリングです。',16);log('宇宙服を着用して船外活動へ。');}
       updateMode();
     }
-    if(action==='safe'){if(!state.safe&&Math.abs(player.z-11.9)<.42){say('隔壁の軌道を空けてください。少し前か後ろへ移動してください。');return;}state.safe=!state.safe;W.safeDoor.position.x=state.safe?0:1.95;say(state.safe?'後部避難室を密閉しました。ここは独立酸素供給。船内が真空でも、この部屋で過ごせます。':'避難室の隔壁を開放。居住区と空気を共有します。');log('避難室の隔壁を'+(state.safe?'閉鎖。':'開放。'));}
+    if(action==='safe'){if(!state.safe&&Math.abs(player.z-11.9)<.42){say('隔壁の軌道を空けてください。少し前か後ろへ移動してください。');return;}state.safe=!state.safe;say(state.safe?'後部避難室を密閉しました。ここは独立酸素供給。船内が真空でも、この部屋で過ごせます。':'避難室の隔壁を開放。居住区と空気を共有します。');log('避難室の隔壁を'+(state.safe?'閉鎖。':'開放。'));}
     if(action==='rest'){resting=!resting;say(resting?'少し休みましょう。時計は、いつもどおり進んでいます。':'起きましたか。私は、ここにいます。');}
     if(action==='damage'){
       const d=state.damages.find(d=>d.id===object.userData.damage);if(!d)return;
@@ -116,7 +118,7 @@
       say(d.severity===1?'小規模損傷を修復しました。外板の痕跡は残りますが、ここから空気は漏れません。':'破口を応急封止しました。約15分で封止が劣化します。構造の歪みは基地以外では直せません。',13);log('船体'+(d.pos[0]<0?'左舷':'右舷')+' Z'+d.pos[2].toFixed(1)+'m を'+(d.fixed?'修復。':'応急封止。'));save();
     }
     if(action==='pipe'){
-      const node=object.userData.node,ds=state.damages.filter(d=>d.node===node&&!d.pipeFixed);
+      const node=object.userData.node,ds=state.damages.filter(d=>d.node===node&&!d.pipeFixed);W.triggerMechanism('pipe',node);
       if(!ds.length){say('LINE 0'+(node+1)+'、圧力正常。異常はありません。',6);return;}
       if(!state.hasKit||state.kits<=0){say('LINE 0'+(node+1)+'、圧力低下。携行修理キットと資材が必要です。');return;}
       ds.forEach(d=>d.pipeFixed=true);state.kits--;say('LINE 0'+(node+1)+'をバイパス接続しました。配管は復旧。船体の破口は別途封止が必要です。');log('配管 LINE 0'+(node+1)+'を現地で修復。');save();
@@ -166,7 +168,7 @@
   function canWalk(x,z){
     if(state.layer==='pipes')return Math.abs(x)<.66&&z>-.8&&z<12.7;
     if(Math.abs(x)>3.24||z< -6.15||z>14.1)return false;
-    if(Math.abs(z-11.9)<.27&&state.safe)return false;
+    if(Math.abs(z-11.9)<.27&&(state.safe||W.safeDoor.position.x<1.72))return false;
     for(const wallZ of [.75,6.1,10.75])if(Math.abs(z-wallZ)<.27&&Math.abs(x)>1.6)return false;
     if(Math.abs(z-11.9)<.3&&Math.abs(x)>.83)return false;
     if(x>1.77&&x<2.12&&z>3.1&&z<5.5)return false;
@@ -238,11 +240,11 @@
   }
   let last=performance.now();
   function frame(now){requestAnimationFrame(frame);const dt=Math.min((now-last)/1000,.05);last=now;elapsed+=dt;
-    if(!paused&&!document.hidden){if(playing)simulate(dt);W.earth.rotation.y+=dt*.000015;for(const rock of W.distantRocks)rock.rotation.y+=dt*.018;
+    if(!paused&&!document.hidden){if(playing)simulate(dt);W.updateMechanisms(dt,elapsed,{safe:state.safe,layer:state.layer,speed:state.speed,faults:pipeFaults().map(d=>d.node)});W.earth.rotation.y+=dt*.000015;for(const rock of W.distantRocks)rock.rotation.y+=dt*.018;
       if(playing){if(external){W.camera.position.set(Math.sin(externalYaw)*25,6+Math.sin(externalPitch)*19,5+Math.cos(externalYaw)*25);const target=W.ship.localToWorld(new T.Vector3(0,1,4));W.camera.lookAt(target);}else{W.camera.position.copy(player);W.camera.rotation.set(pitch,yaw,0,'YXZ');if(shake>.002){W.camera.position.x+=(Math.random()-.5)*shake;W.camera.position.y+=(Math.random()-.5)*shake;W.camera.rotation.z=(Math.random()-.5)*shake*.12;shake*=Math.exp(-dt*2.2);}if(resting)W.camera.rotation.z=Math.sin(elapsed*.2)*.004;}
       }else {W.camera.position.set(0,1.65,-1.15);W.camera.rotation.set(.075+Math.sin(elapsed*.12)*.002,Math.sin(elapsed*.08)*.003,0,'YXZ');}
     }
-    W.renderer.render(W.scene,W.camera);
+    W.render();
     screenTick+=dt;if(screenTick>.75){screenTick=0;drawScreens();}
     hudTick+=dt;if(playing&&hudTick>.16){hudTick=0;hud();}
   }
@@ -253,17 +255,17 @@
     check('3D hull has 108 deformable plates',W.hull.length===108);check('Physical monitors have touch regions',W.monitors.every(m=>m.zones.length>=4));check('Cabin collision blocks hull',!canWalk(5,2));check('Central passage walkable',canWalk(0,3));check('Airlock and suit are interactive',W.interactables.some(m=>m.userData.action==='suit')&&W.interactables.some(m=>m.userData.action==='airlock'));check('Pipe nodes are physical and unique',W.pipeNodes.length===6);check('Scene renders without GL errors',W.renderer.getContext().getError()===0);
     const testMode=new URLSearchParams(location.search).get('view');
     if(testMode==='test'){
-      start();W.renderer.render(W.scene,W.camera);
+      start();W.render();
       const main=W.monitors.find(m=>m.id==='main');
       const screenPoint=(x,y)=>main.screen.localToWorld(new T.Vector3((x/1024-.5)*2.22,(.5-y/640)*2.22*.625,0)).project(W.camera);
       const p=screenPoint(370,387),before=state.speed;const monitorHit=getHit(p.x,p.y);check('Raycast reaches physical dashboard',monitorHit&&monitorHit.object===main.screen);use(p.x,p.y);check('Direct screen UV touch changes thrust',state.speed>before);
       state.speed=.2;const initialPos=W.ship.position.clone();simulate(.5);check('Complete vessel translates in 3D',W.ship.position.distanceTo(initialPos)>.09);
       seat();check('Standing leaves pilot chair',!state.seated);keys.KeyS=true;const oldZ=player.z;movePlayer(.5);keys.KeyS=false;check('First-person walk moves player',player.z>oldZ);
-      player.set(0,1.62,5.4);W.camera.position.copy(player);W.camera.lookAt(W.ship.localToWorld(new T.Vector3(0,0,4.5)));W.renderer.render(W.scene,W.camera);check('Actual floor hatch is ray-interactive',getHit()?.object.userData.action==='hatch');
-      act('hatch');check('Hatch descends into actual pipe layer',state.layer==='pipes'&&player.y<0);W.camera.position.copy(player);W.camera.lookAt(W.ship.localToWorld(new T.Vector3(0,-1.6,5.07)));W.renderer.render(W.scene,W.camera);check('Ladder reachable from maintenance layer',getHit()?.object.userData.action==='hatch');act('hatch');
+      player.set(0,1.62,5.4);W.camera.position.copy(player);W.camera.lookAt(W.ship.localToWorld(new T.Vector3(0,0,4.5)));W.render();check('Actual floor hatch is ray-interactive',getHit()?.object.userData.action==='hatch');
+      act('hatch');check('Hatch descends into actual pipe layer',state.layer==='pipes'&&player.y<0);W.camera.position.copy(player);W.camera.lookAt(W.ship.localToWorld(new T.Vector3(0,-1.6,5.07)));W.render();check('Ladder reachable from maintenance layer',getHit()?.object.userData.action==='hatch');act('hatch');
       player.set(0,1.62,13.6);act('airlock');check('Airlock prevents unsuited exit',state.layer==='cabin');act('suit');act('airlock');check('Wearing suit allows physical EVA',state.layer==='eva'&&state.suit);
-      W.camera.position.copy(player);W.camera.lookAt(W.ship.localToWorld(new T.Vector3(0,1.25,15.65)));W.renderer.render(W.scene,W.camera);check('Exterior return door is unobstructed',getHit()?.object.userData.action==='airlock');act('airlock');check('Airlock returns player to cabin',state.layer==='cabin');
-      W.camera.position.copy(player);W.camera.lookAt(W.ship.localToWorld(new T.Vector3(0,1.25,15.48)));W.renderer.render(W.scene,W.camera);check('Interior airlock door is unobstructed',getHit()?.object.userData.action==='airlock');
+      W.camera.position.copy(player);W.camera.lookAt(W.ship.localToWorld(new T.Vector3(0,1.25,15.65)));W.render();check('Exterior return door is unobstructed',getHit()?.object.userData.action==='airlock');act('airlock');check('Airlock returns player to cabin',state.layer==='cabin');
+      W.camera.position.copy(player);W.camera.lookAt(W.ship.localToWorld(new T.Vector3(0,1.25,15.48)));W.render();check('Interior airlock door is unobstructed',getHit()?.object.userData.action==='airlock');
       act('safe');check('Sealed rear compartment independently safe',insideSafe());check('Closed bulkhead blocks walking',!canWalk(0,11.9));act('safe');act('suit');
       act('coffee');check('Coffee makes a persistent journal entry',state.coffee===1&&state.logs.some(l=>l.text.includes('コーヒー')));act('shower');check('Shower activates visible 3D water',W.showerDrops.visible);act('shower');
       // Close-range rays must still reach usable objects after decorative detailing.
@@ -281,9 +283,22 @@
       check('Central passage remains clear after detailing',[2,4,6,8,10].every(z=>canWalk(0,z)));
       spawnImpact(true);for(let i=0;i<195;i++)simulate(.05);check('Moving asteroid physically collides',state.damages.length===1&&impactors.length===0);check('Impact leaks cabin oxygen',state.oxygen<100);check('Impact alters actual hull vertices',W.hull.some(m=>m.geometry.attributes.position.array.some((v,i)=>Math.abs(v-m.userData.original[i])>.001)));
       if(state.damages.length){const d=state.damages[0];act('kit');act('damage',{userData:{damage:d.id}});check('Medium damage can only be sealed, not removed',d.sealed&&!d.fixed&&state.kits===11);act('pipe',W.pipeNodes[d.node]);check('On-site pipe repair restores circuit',d.pipeFixed&&state.kits===10);d.sealLife=.01;simulate(.05);check('Temporary repair deteriorates with time',!d.sealed);const roundTrip=JSON.parse(JSON.stringify(state));check('Damage and repair inventory serialize',roundTrip.damages.length===1&&roundTrip.kits===10);}
+      const fanAngle=W.fans[0].rotation.z;W.updateMechanisms(.2,20,{safe:true,layer:'pipes',speed:1,faults:[0]});
+      check('Server impellers rotate independently',W.fans[0].rotation.z!==fanAngle);
+      check('Bulkhead eases toward the closed position',W.safeDoor.position.x>0&&W.safeDoor.position.x<1.95);
+      check('Service hatch opens on its physical hinge',W.hatchPivot.rotation.x<-.5);
+      check('Pipe fault lights reflect the damaged circuit',W.pipeNodes[0].userData.indicator.material===W.materials.red);
+      W.triggerMechanism('coffee');W.updateMechanisms(.1,21,{safe:false,layer:'cabin',speed:0,faults:[]});
+      check('Coffee extraction has visible liquid and steam',W.brewFlow.visible&&W.brewSteam.visible);
+      check('Zero thrust extinguishes ion plumes',W.enginePlumes.every(p=>!p.visible));
+      W.updateMechanisms(10,22,{safe:false,layer:'cabin',speed:.2,faults:[]});
+      check('Brewing automatically stops',!W.brewFlow.visible&&!W.brewSteam.visible);
+      check('Dynamic assemblies survive static batching',W.fans.every(p=>p.parent)&&W.valveWheels.every(g=>g.children.length>=5));
       W.restoreHull();state=fresh();W.ship.position.set(0,0,0);W.ship.rotation.set(0,0,0);player.set(0,1.65,-1.15);yaw=0;pitch=.075;W.safeDoor.position.x=1.95;coffeeTime=0;$('coffee-cup').classList.add('hidden');updateMode();drawScreens();
     }
     if(testMode){start();if(testMode==='cabin'){state.seated=false;player.set(0,1.62,1.6);yaw=Math.PI;pitch=-.06;}if(testMode==='pipes'){state.layer='pipes';state.seated=false;player.set(0,-1.3,4.4);yaw=0;pitch=0;}if(testMode==='external'){toggleExternal(true);}if(testMode==='damage'){toggleExternal(true);spawnImpact(true);for(let i=0;i<200;i++)simulate(.05);externalYaw=state.damages[0]?.pos[0]>0?1.05:-1.05;externalPitch=.08;}updateMode();}
+    // Only available in the explicit, non-saving test mode; never part of a voyage.
+    if(testMode==='test')W.testActions={act,simulate,drawScreens,state:()=>state};
     W.diagnostics=assertions;
     console.log('B29 CHECKS '+assertions.filter(a=>a.pass).length+'/'+assertions.length);
   }

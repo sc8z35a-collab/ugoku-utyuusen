@@ -1,0 +1,7 @@
+# Local browser tooling and generated visual evidence
+.tools/
+.browsers/
+.cache/
+artifacts/
+baseline/
+production-check/
