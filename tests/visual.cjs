@@ -5,6 +5,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 const { chromium } = require(process.env.PLAYWRIGHT_MODULE || 'playwright');
+const quick = process.env.QUICK_CHECK === '1';
 const base = process.env.BASE_URL || 'http://localhost:3000/';
 const output = path.resolve(__dirname, '..', process.env.OUTPUT_DIR || 'artifacts');
 fs.mkdirSync(output, { recursive: true });
@@ -18,6 +19,10 @@ const views = [
   ['lounge', [-.7, 1.65, 3.7], [-3, 1.2, 3]],
   ['coffee', [-1.65, 1.5, 1.98], [-2.65, 1.1, 1.5]],
   ['table', [-.75, 1.55, 4.3], [-1.85, .8, 3.55]],
+  ['galley', [1.45,1.7,2.1], [3.05,1.15,1.55]],
+  ['hydroponics', [1.55,1.8,-1.2], [3.1,1.3,-.65]],
+  ['workbench', [1.6,1.6,9.2], [3.05,1.1,9.8]],
+  ['aft-lockers', [-1.6,1.65,13.1], [-3.05,1.35,13.75]],
   ['garden', [-2.12, 1.9, 2.82], [-3.1, 1.85, 2.2]],
   ['books', [-1.9, 1.85, 5.15], [-3.12, 2, 5.1]],
   ['bath', [.7, 1.65, 3], [3, 1.4, 3.7]],
@@ -45,11 +50,12 @@ function deterministicFrames() {
   const callbacks = []; let now;
   window.requestAnimationFrame = callback => callbacks.push(callback);
   window.__step = (frames = 1) => {
-    now ??= performance.now();
+    now = Math.max(now || 0, performance.now());
     for (let i = 0; i < frames; i++) { now += 50; callbacks.splice(0).forEach(callback => callback(now)); }
   };
 }
 async function capture(page, name) {
+  if (quick) return;
   // Capture directly without waiting for the application's manually stepped RAF.
   const session = await page.context().newCDPSession(page);
   const image = await session.send('Page.captureScreenshot', { format: 'png' });
@@ -90,7 +96,7 @@ async function capture(page, name) {
       document.querySelector('#game-hud').style.display = 'none';
       document.querySelector('.topbar').style.display = 'none';
     });
-    for (const [name, position, target] of views) {
+    for (const [name, position, target] of (quick ? [] : views)) {
       await page.evaluate(({ position, target }) => {
         B29.camera.position.set(...position); B29.camera.lookAt(new THREE.Vector3(...target));
         B29.chair.visible = true; B29.scene.updateMatrixWorld(true);
@@ -99,8 +105,11 @@ async function capture(page, name) {
       await capture(page, name);
       assert.equal(await page.evaluate(() => B29.renderer.getContext().getError()), 0, `${name}: WebGL error`);
     }
-    if (await page.evaluate(() => !!B29.testActions)) {
+    if (!quick && await page.evaluate(() => !!B29.testActions)) {
       const mechanismViews = [
+        ['sink-running', [1.9,1.6,1.5], [3.05,1.05,1.3], 'tap'],
+        ['storage-open', [1.55,1.2,1.5], [2.9,.6,1.3], 'cabinet'],
+        ['workbench-lamp-off', [1.6,1.6,9.2], [3.05,1.1,9.8], 'task-light'],
         ['brewing', [-2,1.55,2.25], [-2.65,1.1,1.65], 'coffee'],
         ['hatch-open', [0,1.62,3.4], [0,-.3,4.6], 'hatch'],
         ['bulkhead-closed', [0,1.62,10.1], [0,1.35,11.9], 'safe'],
@@ -124,11 +133,33 @@ async function capture(page, name) {
       const context = await browser.newContext({ viewport: { width, height }, hasTouch: touch, isMobile: touch, deviceScaleFactor: 1 });
       const p = await context.newPage(); watch(p); await p.addInitScript(deterministicFrames);
       await p.goto(new URL('?check=1', base).href, { waitUntil: 'domcontentloaded', timeout: 180000 });
-      await p.waitForFunction(() => window.B29 && !document.querySelector('#start-button').disabled);
-      await p.evaluate(() => { document.querySelector('#rotate-dismiss').click(); window.__step(); });
-      await capture(p, `${device}-welcome`);
-      await p.locator('#start-button').click(); await p.evaluate(() => window.__step());
+      await p.waitForFunction(() => window.B29 && document.body.classList.contains('playing'), null, {polling:100,timeout:180000});
+      await p.evaluate(() => window.__step(4));
+      assert.equal(await p.locator('#welcome, #start-button, #rotate-notice, .keyboard-hint, .top-status, .brand').count(), 0);
+      assert.equal(await p.locator('#ai-text').textContent(), '', 'No unsolicited startup text');
+      for (const id of ['fullscreen-button', 'help-toggle', 'sound-toggle', 'seat-button']) {
+        const button=p.locator('#'+id), bounds=await button.boundingBox();
+        assert.ok(bounds && bounds.width>=44 && bounds.height>=44, `${id}: touch-sized control`);
+        assert.equal((await button.textContent()).trim(), '', `${id}: icon only`);
+        assert.ok(await button.getAttribute('aria-label'), `${id}: accessible name`);
+      }
       await capture(p, `${device}-playing`);
+      await p.locator('#fullscreen-button').click();
+      await p.waitForFunction(() => !!document.fullscreenElement, null, {polling:100,timeout:180000});
+      assert.equal(await p.locator('#fullscreen-button').getAttribute('aria-pressed'), 'true');
+      await p.locator('#fullscreen-button').click();
+      await p.waitForFunction(() => !document.fullscreenElement, null, {polling:100,timeout:180000});
+      await p.keyboard.press('g');await p.waitForFunction(() => !!document.fullscreenElement, null, {polling:100,timeout:180000});
+      // Browser exits (including Esc) must update the icon without another button click.
+      await p.evaluate(() => document.exitFullscreen());
+      await p.waitForFunction(() => document.querySelector('#fullscreen-button').getAttribute('aria-pressed')==='false', null, {polling:100,timeout:180000});
+      const aspect=await p.evaluate(() => ({actual:B29.camera.aspect,expected:innerWidth/innerHeight}));
+      assert.equal(aspect.actual,aspect.expected,'Renderer resizes after fullscreen');
+      await p.evaluate(() => { document.documentElement.requestFullscreen=()=>Promise.reject(new Error('Blocked by browser')); });
+      await p.locator('#fullscreen-button').click();
+      assert.equal(await p.locator('#fullscreen-help').isVisible(),true,'Blocked fullscreen has useful fallback');
+      await p.locator('#fullscreen-help .dialog-close').click();
+      await p.evaluate(() => { delete document.documentElement.requestFullscreen; });
       assert.equal(await p.locator('#game-hud').isVisible(), true);
       await p.locator('#seat-button').click(); await p.evaluate(() => window.__step());
       assert.equal(await p.evaluate(() => B29.chair.visible), true, 'Stand action');
@@ -151,11 +182,27 @@ async function capture(page, name) {
       await p.mouse.move(width * .55, height * .48); await p.mouse.down(); await p.mouse.move(width * .65, height * .48); await p.mouse.up(); await p.evaluate(() => window.__step());
       assert.notEqual(await p.evaluate(() => B29.camera.rotation.y), yaw, 'Drag changes camera orientation');
       await p.locator('#help-toggle').click(); assert.equal(await p.locator('#guide-dialog').isVisible(), true);
-      await capture(p, `${device}-guide`); await p.locator('.dialog-close').click();
+      await capture(p, `${device}-guide`); await p.locator('#guide-dialog .dialog-close').click();
       assert.equal(await p.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true, 'No horizontal overflow');
-      report.devices.push({ device, width, height, movement: true, look: true, guide: true });
+      console.log('PASS device '+device);
+      report.devices.push({ device, width, height, movement: true, look: true, guide: true, instantStart: true, fullscreen: true, fullscreenFallback: true });
       await context.close();
     }
+    // Real startup/save round trip, outside diagnostic mode (which intentionally never saves).
+    const savedPage=await browser.newPage({viewport:{width:1024,height:700}});watch(savedPage);
+    await savedPage.addInitScript(deterministicFrames);
+    await savedPage.goto(base,{waitUntil:'domcontentloaded',timeout:180000});
+    await savedPage.waitForFunction(()=>document.body.classList.contains('playing'), null, {polling:100,timeout:180000});
+    await savedPage.locator('#seat-button').click();await savedPage.keyboard.down('s');
+    await savedPage.evaluate(()=>window.__step(10));await savedPage.keyboard.up('s');
+    await savedPage.evaluate(()=>window.dispatchEvent(new Event('pagehide')));
+    const saved=await savedPage.evaluate(()=>JSON.parse(localStorage.getItem('b29-quiet-odyssey-v1')));
+    assert.equal(saved.seated,false);assert.ok(saved.player[2]>.1);
+    await savedPage.reload({waitUntil:'domcontentloaded',timeout:180000});
+    await savedPage.waitForFunction(()=>document.body.classList.contains('playing'), null, {polling:100,timeout:180000});
+    assert.deepEqual(await savedPage.evaluate(()=>B29.camera.position.toArray()),saved.player,'Saved position restored without start screen');
+    assert.equal(await savedPage.locator('#ai-text').textContent(),'','No unsolicited resume message');
+    await savedPage.close();
     assert.deepEqual(report.checks.filter(check => !check.pass), [], 'Physical regression failure');
     assert.deepEqual(errors, [], 'Browser errors');
     console.log(`PASS ${report.checks.length} physics checks, ${report.screenshots.length} screenshots, ${report.devices.length} device layouts`);

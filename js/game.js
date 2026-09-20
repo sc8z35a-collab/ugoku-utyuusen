@@ -7,7 +7,7 @@
   const fresh=()=>({version:1,age:0,position:[0,0,0],heading:0,pitch:0,speed:.2,oxygen:100,suitAir:3600,damages:[],kits:12,hasKit:false,suit:false,safe:false,coffee:0,returnTime:null,logs:[{time:0,text:'2041年6月1日。カイト、21歳。B-29で地球を出発。'}],player:[0,1.65,-1.15],yaw:0,look:.075,layer:'cabin',seated:true,impactCountdown:300});
   let state=fresh(),saved=false,storageAvailable=true;
   try{const raw=diagnostic?null:localStorage.getItem(STORAGE);if(raw){const v=JSON.parse(raw);if(v.version===1&&Array.isArray(v.damages)&&Array.isArray(v.position)){state={...state,...v};saved=true;}}}catch(e){storageAvailable=false;}
-  let playing=false,paused=false,external=false,shower=false,resting=false,coffeeTime=0,shake=0,aiTime=0,elapsed=0,nextChat=80,saveTick=0,screenTick=0,hudTick=0;
+  let playing=false,paused=false,external=false,shower=false,resting=false,coffeeTime=0,shake=0,aiTime=0,elapsed=0,saveTick=0,screenTick=0,hudTick=0;
   const player=new T.Vector3(...state.player);let yaw=state.yaw,pitch=state.look;
   const keys={},move={x:0,y:0},vertical={up:false,down:false};
   W.ship.position.fromArray(state.position);W.ship.rotation.set(state.pitch,state.heading,0,'YXZ');
@@ -19,7 +19,7 @@
   // while the complete vessel and colliding meteoroids move in the world scene.
   function say(text,duration=13){$('ai-text').textContent=text;aiTime=duration;$('asphalt-message').style.opacity='1';}
   function log(text){state.logs.unshift({time:state.age,text});state.logs=state.logs.slice(0,50);}
-  function save(){if(!playing||diagnostic){saveTick=0;return;}state.player=player.toArray();state.yaw=yaw;state.look=pitch;state.position=W.ship.position.toArray();try{localStorage.setItem(STORAGE,JSON.stringify(state));$('save-label').textContent='航海を保存しました';}catch(e){storageAvailable=false;$('save-label').textContent='保存できません / ストレージを確認';}saveTick=0;}
+  function save(){if(!playing||diagnostic){saveTick=0;return;}state.player=player.toArray();state.yaw=yaw;state.look=pitch;state.position=W.ship.position.toArray();try{localStorage.setItem(STORAGE,JSON.stringify(state));}catch(e){if(storageAvailable)say('航海を保存できません。ブラウザーの保存設定を確認してください。',8);storageAvailable=false;}saveTick=0;}
   const formatTime=n=>`${String(Math.floor(n/3600)).padStart(2,'0')}:${String(Math.floor(n/60)%60).padStart(2,'0')}`;
   const suitTime=n=>`${String(Math.floor(n/60)).padStart(2,'0')}:${String(Math.floor(n)%60).padStart(2,'0')}`;
   const hullIntegrity=()=>Math.max(0,100-state.damages.reduce((a,d)=>a+(d.fixed?0:d.severity*5),0));
@@ -43,7 +43,7 @@
     if(broken){txt('LOCAL SERVER / SIGNAL LOST',55,248,32,'#e1a184');txt('中央モニターで予備サーバーへ切替可能',55,310,26,'#a8bbb9','sans-serif');}
     else if(m.page==='home'){
       c.save();c.translate(613,211);c.strokeStyle='#83b5a742';c.lineWidth=1;for(const r of [25,43]){c.beginPath();c.ellipse(0,0,r,r*.55,-.3,0,Math.PI*2);c.stroke();}c.fillStyle='#bad2b4';c.beginPath();c.arc(0,0,6,0,Math.PI*2);c.fill();c.fillStyle='#d9a767';c.beginPath();c.arc(35,-15,3,0,Math.PI*2);c.fill();c.restore();
-      txt('FLIGHT CONTROL',38,182,18,'#8ba3a5');txt('行き先は、まだ決めなくていい。',38,226,28,'#d4dfd0','sans-serif');
+      txt('FLIGHT CONTROL',38,182,18,'#8ba3a5');txt('航行制御',38,226,28,'#d4dfd0','sans-serif');
       txt(state.speed.toFixed(1),46,327,77,'#bbd1ab');txt('m/s  相対漂流速度',240,322,20);txt('DAY '+String(day()).padStart(2,'0'),725,205,31,'#d4dfd0');txt(formatTime(state.age%86400),748,242,23);
       button('− 減速',38,358,215,58,()=>{state.speed=Math.max(0,state.speed-.2);say('推力を絞りました。ゆっくりで、いいんです。',6);});
       button('+ 加速',263,358,215,58,()=>{state.speed=Math.min(4,state.speed+.2);say('微速推進。船も、慌てるのは得意ではありません。',6);});
@@ -62,7 +62,7 @@
       button('試験衝突 / 3D小惑星',38,480,460,54,()=>{if(impactors.length){say('すでに接近中の岩塊があります。');return;}spawnImpact(true);});
       button('応急処置システム',514,480,470,54,()=>{let n=0;state.damages.forEach(d=>{if(!d.fixed&&!d.autoUsed){d.sealed=true;d.sealLife=180;d.autoUsed=true;n++;}});say(n?'緊急封止剤を放出。約3分の猶予です。現場へ行き、修理キットで補強してください。':'利用できる未使用封止カートリッジがありません。現場での作業が必要です。');log('応急処置システムを操作。');});
     }else if(m.page==='life'){
-      txt('HABITAT / SLOW LIVING',38,185,18,'#8ba3a5');txt('ひとり。けれど、ひとりではない。',38,238,29,'#d0ddc9','sans-serif');
+      txt('HABITAT / SLOW LIVING',38,185,18,'#8ba3a5');txt('居住設備',38,238,29,'#d0ddc9','sans-serif');
       txt('淹れたコーヒー  '+state.coffee+' 杯',38,298,23,'#b6c7c4','sans-serif');txt('水循環 '+(pipeFaults().length?'要点検':'98%')+'  /  修理キット '+(state.hasKit?'携行中':'後部エンジニア区画'),38,341,22,'#b6c7c4','sans-serif');
       txt(state.suit?'宇宙服装着中 / 残り酸素 '+suitTime(state.suitAir):'宇宙服は後部エアロックにあります。',38,382,22,'#c1cda8','sans-serif');
       button('アスファルト、話して',38,422,460,60,()=>chat());button('照明 / 夜間モード',514,422,470,60,()=>{W.lamps.forEach(l=>l.intensity=l.intensity>5?3:l.userData.dayIntensity);say('船内照明を調整しました。好きな明るさで、お過ごしください。');});
@@ -88,14 +88,19 @@
   function chat(){say(state.damages.some(d=>!d.fixed)&&Math.random()<.4?'船の傷は残ります。でも、旅まで終わりにする必要はありません。空気のことだけは、忘れないでください。':messages[chatIndex++%messages.length],16);}
   // Web Audio is entirely client-side and starts only after a deliberate user action.
   let audio=null,sound=false;
-  function toggleSound(){try{if(!audio){const ctx=new(window.AudioContext||window.webkitAudioContext)(),gain=ctx.createGain();gain.gain.value=0;gain.connect(ctx.destination);const oscillators=[];for(const f of [43,86,131]){const o=ctx.createOscillator(),g=ctx.createGain();o.type='sine';o.frequency.value=f;g.gain.value=f===43?.2:.035;o.connect(g);g.connect(gain);o.start();oscillators.push(o);}audio={ctx,gain,oscillators};}audio.ctx.resume();sound=!sound;audio.gain.gain.setTargetAtTime(sound?.3:0,audio.ctx.currentTime,.4);$('sound-toggle').innerHTML='♪ <span>'+(sound?'ON':'OFF')+'</span>';}catch(e){say('このブラウザーでは環境音を再生できません。');}}
+  function toggleSound(){try{if(!audio){const ctx=new(window.AudioContext||window.webkitAudioContext)(),gain=ctx.createGain();gain.gain.value=0;gain.connect(ctx.destination);const oscillators=[];for(const f of [43,86,131]){const o=ctx.createOscillator(),g=ctx.createGain();o.type='sine';o.frequency.value=f;g.gain.value=f===43?.2:.035;o.connect(g);g.connect(gain);o.start();oscillators.push(o);}audio={ctx,gain,oscillators};}audio.ctx.resume();sound=!sound;audio.gain.gain.setTargetAtTime(sound?.3:0,audio.ctx.currentTime,.4);$('sound-toggle').setAttribute('aria-pressed',String(sound));$('sound-toggle').setAttribute('aria-label',sound?'環境音をオフにする':'環境音をオンにする');}catch(e){say('このブラウザーでは環境音を再生できません。');}}
   function impactSound(){if(!audio||!sound)return;const c=audio.ctx,b=c.createBuffer(1,c.sampleRate*.45,c.sampleRate),a=b.getChannelData(0);for(let i=0;i<a.length;i++)a[i]=(Math.random()*2-1)*Math.pow(1-i/a.length,4);const s=c.createBufferSource(),g=c.createGain(),f=c.createBiquadFilter();f.type='lowpass';f.frequency.value=300;g.gain.value=.38;s.buffer=b;s.connect(f);f.connect(g);g.connect(c.destination);s.start();}
-  function seat(){if(external){toggleExternal(false);return;}if(state.layer!=='cabin'){say('操縦席は居住層の前方です。');return;}if(state.seated){state.seated=false;player.set(0,1.62,.1);say('ごゆっくり。後方は居住区、床のハッチの下は配管層です。',10);}else if(player.distanceTo(new T.Vector3(0,1.62,-.65))<3){state.seated=true;player.set(0,1.65,-1.15);yaw=0;pitch=.075;say('操縦を引き継ぎます。正面のモニターに触れてください。',8);}else{say('操縦席に近づいてください。ここから船内を歩いて戻れます。',7);}updateMode();}
-  function updateMode(){document.body.classList.toggle('eva',state.layer==='eva');$('seat-button').textContent=state.seated?'立つ':'座る';$('visor').classList.toggle('hidden',!state.suit);$('external-exit').classList.toggle('hidden',!external);W.chair.visible=!state.seated||external;W.gloves.visible=state.suit&&!external;W.coffeeGroup.visible=coffeeTime>0&&!external;}
+  function seat(){if(external){toggleExternal(false);return;}if(state.layer!=='cabin'){say('操縦席は居住層の前方です。');return;}if(state.seated){state.seated=false;player.set(0,1.62,.1);}else if(player.distanceTo(new T.Vector3(0,1.62,-.65))<3){state.seated=true;player.set(0,1.65,-1.15);yaw=0;pitch=.075;}else{say('操縦席に近づいてください。ここから船内を歩いて戻れます。',7);}updateMode();}
+  function updateMode(){document.body.classList.toggle('eva',state.layer==='eva');$('seat-button').classList.toggle('standing',!state.seated);$('seat-button').setAttribute('aria-label',state.seated?'操縦席から立つ':'操縦席に座る');$('seat-button').title=(state.seated?'立つ':'座る')+'（Q）';$('visor').classList.toggle('hidden',!state.suit);$('external-exit').classList.toggle('hidden',!external);W.chair.visible=!state.seated||external;W.gloves.visible=state.suit&&!external;W.coffeeGroup.visible=coffeeTime>0&&!external;}
   function toggleExternal(force){external=force===undefined?!external:force;if(external){externalYaw=.55;externalPitch=.28;say('船外カメラです。ドラッグで機体を見回せます。傷も、この船の一部です。',10);}updateMode();}
   let externalYaw=.55,externalPitch=.28;
   function act(action,object){
     if(action==='seat'){seat();return;}
+    if(['tap','cabinet','task-light'].includes(action)){
+      if(action==='tap'&&pipeFaults().length){say('給水配管の修理が必要です。',5);return;}
+      if(action==='cabinet'&&!W.habitat.cabinet&&Math.abs(player.x-2.44)<.58&&Math.abs(player.z-1.15)<.51){say('収納扉から少し離れてください。',4);return;}
+      W.setHabitat(action);return;
+    }
     if(action==='coffee'){if(state.suit){say('ヘルメットを着けたままでは飲めません。安全な部屋で宇宙服を脱いでから、どうぞ。');return;}if(pipeFaults().length){say('給水配管に異常があります。床下の点検をお願いします。');return;}state.coffee++;coffeeTime=35;W.triggerMechanism('coffee');W.coffeeGroup.visible=!external;say('コーヒーが入りました。地球を見ながら、どうぞ。熱いので、気をつけて。');log('コーヒーを淹れた。'+state.coffee+'杯目。');}
     if(action==='shower'){if(pipeFaults().length){say('配管が損傷しています。いまは水を循環できません。');return;}shower=!shower;W.showerDrops.visible=shower;say(shower?'温水を循環します。使用した水の98%は、また戻ってきます。':'シャワーを停止しました。',9);}
     if(action==='hatch'){if(state.suit){say('宇宙服では床下の狭い通路に入れません。エアロックで脱いでください。');return;}state.seated=false;if(state.layer==='pipes'){state.layer='cabin';player.set(0,1.62,5.4);say('居住層です。空が見えるところへ戻りました。',7);}else{state.layer='pipes';player.set(0,-1.3,4.4);pitch=0;yaw=0;say('配管層に入りました。左右の LINE 01〜06 が点検箇所です。異常系統はモニターでも確認できます。',13);}updateMode();}
@@ -172,7 +177,7 @@
     for(const wallZ of [.75,6.1,10.75])if(Math.abs(z-wallZ)<.27&&Math.abs(x)>1.6)return false;
     if(Math.abs(z-11.9)<.3&&Math.abs(x)>.83)return false;
     if(x>1.77&&x<2.12&&z>3.1&&z<5.5)return false;
-    return !W.colliders.some(o=>Math.abs(x-o.x)<o.w/2+.21&&Math.abs(z-o.z)<o.d/2+.21);
+    return !W.colliders.some(o=>!o.disabled&&Math.abs(x-o.x)<o.w/2+.21&&Math.abs(z-o.z)<o.d/2+.21);
   }
   function insideShip(p){const e=p.x*p.x/(4.1*4.1)+(p.y-1)*(p.y-1)/(3.8*3.8);return e<1&&p.z>-7.3&&p.z<15.2;}
   function movePlayer(dt){
@@ -183,7 +188,7 @@
     else {vec.applyAxisAngle(new T.Vector3(0,1,0),yaw).multiplyScalar(dt*speed);if(canWalk(player.x+vec.x,player.z))player.x+=vec.x;if(canWalk(player.x,player.z+vec.z))player.z+=vec.z;player.y=state.layer==='pipes'?-1.3:1.62;}
   }
   // Keyboard, multi-touch view dragging, true joystick and direct scene interaction.
-  document.addEventListener('keydown',e=>{if(!playing||paused)return;if(['KeyW','KeyA','KeyS','KeyD','KeyQ','KeyE','KeyR','KeyF','Space'].includes(e.code))e.preventDefault();keys[e.code]=true;if(e.repeat)return;if(e.code==='KeyE')use();if(e.code==='KeyQ')seat();if(e.code==='KeyH')showGuide();if(e.code==='Escape'&&external)toggleExternal(false);});
+  document.addEventListener('keydown',e=>{if(!playing||paused)return;if(['KeyW','KeyA','KeyS','KeyD','KeyQ','KeyE','KeyR','KeyF','Space'].includes(e.code))e.preventDefault();keys[e.code]=true;if(e.repeat)return;if(e.code==='KeyE')use();if(e.code==='KeyQ')seat();if(e.code==='KeyH')showGuide();if(e.code==='KeyG'){e.preventDefault();toggleFullscreen();}if(e.code==='Escape'&&external)toggleExternal(false);});
   document.addEventListener('keyup',e=>keys[e.code]=false);
   window.addEventListener('blur',()=>{Object.keys(keys).forEach(k=>keys[k]=false);move.x=move.y=0;vertical.up=vertical.down=false;save();});
   let drag=null;
@@ -199,14 +204,34 @@
   $('move-pad').addEventListener('pointerup',padEnd);$('move-pad').addEventListener('pointercancel',padEnd);
   for(const [id,dir] of [['rise-button','up'],['descend-button','down']]){$(id).addEventListener('pointerdown',e=>{vertical[dir]=true;e.currentTarget.setPointerCapture(e.pointerId);});for(const evt of ['pointerup','pointercancel'])$(id).addEventListener(evt,()=>vertical[dir]=false);}
   $('use-button').addEventListener('click',()=>use());$('seat-button').addEventListener('click',seat);$('external-exit').addEventListener('click',()=>toggleExternal(false));$('sound-toggle').addEventListener('click',toggleSound);
-  function showGuide(){paused=true;padEnd();Object.keys(keys).forEach(k=>keys[k]=false);$('guide-dialog').showModal();}
-  $('help-toggle').addEventListener('click',showGuide);$('welcome-guide').addEventListener('click',showGuide);$('guide-dialog').addEventListener('close',()=>{paused=false;last=performance.now();});
-  $('fullscreen-button').addEventListener('click',async()=>{try{if(!document.fullscreenElement)await document.documentElement.requestFullscreen();if(screen.orientation&&screen.orientation.lock)await screen.orientation.lock('landscape').catch(()=>{});}catch(e){$('fullscreen-button').textContent='端末のブラウザーメニューから全画面にできます';}});
-  $('rotate-dismiss').addEventListener('click',()=>$('rotate-notice').style.display='none');
-  $('start-label').textContent=saved?'航海をつづける':'B–29 に乗り込む';$('start-button').disabled=false;$('reset-button').hidden=!saved;
-  $('reset-button').addEventListener('click',()=>{if(confirm('このブラウザーに保存された航海・損傷・記録を消去しますか？')){try{localStorage.removeItem(STORAGE);}catch(e){}location.reload();}});
-  function start(){playing=true;$('welcome').classList.add('hidden');$('game-hud').classList.remove('hidden');document.body.classList.add('playing');W.camera.position.copy(player);updateMode();say(saved?'おかえりなさい、カイト。B-29は、あなたを待っていました。':'おはよう、カイト。2041年6月1日。地球出発。……さて、どこへ行きましょう。決めなくても、大丈夫です。',19);if(!storageAvailable)$('save-label').textContent='保存機能を利用できません';log(saved?'航海を再開。':'初めて操縦席に座った。');}
-  $('start-button').addEventListener('click',start);
+  function showDialog(id){paused=true;padEnd();drag=null;vertical.up=vertical.down=false;Object.keys(keys).forEach(k=>keys[k]=false);$(id).showModal();}
+  function showGuide(){showDialog('guide-dialog');}
+  $('help-toggle').addEventListener('click',showGuide);
+  for(const id of ['guide-dialog','fullscreen-help'])$(id).addEventListener('close',()=>{paused=!!document.querySelector('dialog[open]');last=performance.now();});
+  const fullscreenElement=()=>document.fullscreenElement||document.webkitFullscreenElement;
+  function syncFullscreen(){const active=!!fullscreenElement();$('fullscreen-button').setAttribute('aria-pressed',String(active));$('fullscreen-button').setAttribute('aria-label',active?'全画面表示を解除':'全画面表示');$('fullscreen-button').title=(active?'全画面を解除':'全画面表示')+'（G）';W.resize();}
+  let fullscreenPending=false;
+  async function toggleFullscreen(){
+    if(fullscreenPending)return;fullscreenPending=true;
+    try{
+      if(fullscreenElement()){
+        const exit=document.exitFullscreen||document.webkitExitFullscreen;
+        if(exit)await exit.call(document);
+        if(screen.orientation?.unlock)screen.orientation.unlock();
+      }else{
+        const request=document.documentElement.requestFullscreen||document.documentElement.webkitRequestFullscreen;
+        if(!request)throw new Error('Fullscreen unavailable');
+        await request.call(document.documentElement);
+        if(matchMedia('(pointer: coarse)').matches&&screen.orientation?.lock)await screen.orientation.lock('landscape').catch(()=>{});
+      }
+      syncFullscreen();
+    }catch(e){showDialog('fullscreen-help');}finally{fullscreenPending=false;}
+  }
+  $('fullscreen-button').addEventListener('click',toggleFullscreen);
+  document.addEventListener('fullscreenchange',syncFullscreen);document.addEventListener('webkitfullscreenchange',syncFullscreen);
+  $('reset-button').addEventListener('click',()=>{if(confirm('このブラウザーに保存された航海・損傷・記録を消去しますか？')){try{localStorage.removeItem(STORAGE);location.reload();}catch(e){say('保存データを削除できません。ブラウザーの設定を確認してください。');}}});
+  function start(){if(playing)return;playing=true;document.body.classList.add('playing');W.camera.position.copy(player);W.camera.rotation.set(pitch,yaw,0,'YXZ');updateMode();if(!storageAvailable)say('このブラウザーでは航海を保存できません。',8);log(saved?'航海を再開。':'初めて操縦席に座った。');}
+  start();
   document.addEventListener('visibilitychange',()=>{if(document.hidden)save();last=performance.now();});window.addEventListener('pagehide',save);
   function simulate(dt){
     state.age+=dt;state.impactCountdown-=dt;
@@ -226,17 +251,19 @@
     for(const v of W.damageVisuals){const d=state.damages.find(d=>d.id===v.id);v.hot.material.color.set(d.fixed?0x8eaf9d:d.sealed?0xc7b879:0xd78a67);v.target.material.opacity=d.fixed?.04:.12+Math.sin(elapsed*3)*.04;v.leak.visible=!d.fixed&&!d.sealed;v.scar.material.color.set(d.sealed?0x7b8477:0x10171b);if(v.leak.visible){const a=v.leak.geometry.attributes.position;for(let i=0;i<a.count;i++){a.setZ(i,(a.getZ(i)+dt*.75)%2);}a.needsUpdate=true;}}
     W.pipeNodes.forEach((n,i)=>{n.material=pipeFaults().some(d=>d.node===i)?W.materials.red:W.materials.dark;});
     if(coffeeTime>0){coffeeTime-=dt;W.coffeeGroup.visible=coffeeTime>0&&!external;W.coffeeGroup.rotation.z=-.08+Math.sin(elapsed*.7)*.014;}
-    aiTime-=dt;if(aiTime<0)$('asphalt-message').style.opacity='.0';nextChat-=dt;if(nextChat<=0){if(aiTime<=0&&!resting)chat();nextChat=100+Math.random()*80;}
+    aiTime-=dt;if(aiTime<0)$('asphalt-message').style.opacity='.0';
     saveTick+=dt;if(saveTick>12)save();
   }
   function hud(){
-    const loc=external?'船外カメラ':state.layer==='eva'?'船外活動':state.layer==='pipes'?'配管層 / メンテナンス':player.z<.75?'コックピット':player.z>12?'避難室 / エアロック':player.z>6.1?'生活・エンジニア区画':player.x<-1.3?'リビング':player.x>1.7?'浴室':'中央通路';
-    $('location-label').textContent=loc;$('mode-label').textContent=external?'EXTERNAL / CAM 01':state.layer==='eva'?'EVA / FREE FLIGHT':state.layer==='pipes'?'SERVICE / −01':'CABIN / 01';
-    const o=insideSafe()?100:state.oxygen;$('oxygen-value').innerHTML=o.toFixed(0)+'<small>%</small>';$('oxygen-value').classList.toggle('danger',o<40);$('hull-value').innerHTML=hullIntegrity()+'<small>%</small>';$('hull-value').classList.toggle('danger',hullIntegrity()<75);$('speed-value').innerHTML=state.speed.toFixed(1)+'<small>m/s</small>';
-    $('network-label').textContent=network()?'地球圏 / 5G 接続中':'月軌道圏外 / 通信なし';$('journey-time').textContent='DAY '+String(day()).padStart(2,'0')+' · '+formatTime(state.age%86400);$('suit-air').textContent='O₂ '+suitTime(state.suitAir);$('suit-air').classList.toggle('danger',state.suitAir<300);
-    const date=new Date(Date.UTC(2041,5,1)+state.age*1000);$('date-label').textContent=date.toISOString().slice(0,10).replaceAll('-','.');
-    const hit=external?null:getHit();$('interaction-hint').textContent=hit?hit.object.userData.name+(hit.object.userData.interaction==='monitor'?' / 直接タップ':' / E・使う'):state.layer==='eva'?'帰船口まで '+player.distanceTo(new T.Vector3(0,1.25,15.65)).toFixed(1)+'m':'';
-    if(saveTick>4&&storageAvailable)$('save-label').textContent='自動保存 / この端末';
+    const lowAir=state.suit&&state.suitAir<300;
+    $('suit-air').classList.toggle('hidden',!lowAir);
+    if(lowAir)$('suit-air').textContent='O₂ '+suitTime(state.suitAir);
+    const hit=external?null:getHit();
+    // Context only: no permanent labels or duplicate instrument telemetry.
+    $('interaction-hint').textContent=hit&&hit.object.userData.interaction!=='monitor'?hit.object.userData.name.split(' / ')[0]:'';
+    $('crosshair').classList.toggle('active',!!hit);
+    $('crosshair').classList.toggle('hidden',external);
+    $('use-button').disabled=!hit||external;
   }
   let last=performance.now();
   function frame(now){requestAnimationFrame(frame);const dt=Math.min((now-last)/1000,.05);last=now;elapsed+=dt;
@@ -278,6 +305,22 @@
       checkReach('Detailed EVA suit stays reachable',[1.4,1.62,13.3],[2.45,1.3,12.75],'suit');
       checkReach('Berth control stays reachable',[-1.7,1.62,8.7],[-2.44,.72,8.7],'rest');
       state.layer='pipes';for(let i=0;i<W.pipeNodes.length;i++){const node=W.pipeNodes[i];checkReach('Pipe valve '+(i+1)+' stays reachable',[0,-1.3,node.position.z],node.position.toArray(),'pipe');}state.layer='cabin';
+      check('Game starts without a title screen',playing&&!$('welcome')&&!$('start-button'));
+      check('No permanent HUD text remains',!$('location-label')&&!$('save-label')&&!document.querySelector('.keyboard-hint'));
+      checkReach('Galley tap reachable from the aisle',[1.8,1.62,1.65],[3.25,1.1,1.65],'tap');
+      checkReach('Storage door reachable from the aisle',[1.5,1.4,1.4],[2.75,.62,1.3],'cabinet');
+      checkReach('Workbench lamp reachable from the aisle',[1.8,1.62,9.95],[3.17,1.53,10.02],'task-light');
+      player.set(1.5,1.62,1.4);act('tap');W.updateMechanisms(.2,10,{faults:[]});
+      check('Galley tap produces real water',W.sinkWater.visible);act('tap');W.updateMechanisms(.2,10);
+      check('Galley tap stops water',!W.sinkWater.visible);
+      act('cabinet');W.updateMechanisms(1,10);
+      check('Storage door pivots and collides outside central aisle',W.storageDoor.rotation.y<-1&&!canWalk(2.44,1.15)&&canWalk(0,1.15));
+      act('cabinet');W.updateMechanisms(1,10);
+      check('Closing storage restores side passage',canWalk(2.35,1.15));
+      act('task-light');W.updateMechanisms(.1,10);check('Workbench lamp can switch off',W.taskLight.intensity===0);
+      act('task-light');W.updateMechanisms(.1,10);check('Workbench lamp can switch on',W.taskLight.intensity>0);
+      act('tap');W.updateMechanisms(.1,10,{faults:[0]});check('Damaged pipes stop galley water',!W.sinkWater.visible);W.updateMechanisms(.1,10,{faults:[]});
+      check('New furniture blocks walking through its volume',!canWalk(3.05,9.8)&&!canWalk(3.15,-.65)&&!canWalk(-3.05,13.75));
       check('Detail atlas stays within one texture',W.detailStats.atlasTiles>20&&W.detailStats.atlasTiles<=64);
       check('Procedural reflections and shadows enabled',W.scene.environment&&W.renderer.shadowMap.enabled);
       check('Central passage remains clear after detailing',[2,4,6,8,10].every(z=>canWalk(0,z)));
@@ -294,7 +337,7 @@
       W.updateMechanisms(10,22,{safe:false,layer:'cabin',speed:.2,faults:[]});
       check('Brewing automatically stops',!W.brewFlow.visible&&!W.brewSteam.visible);
       check('Dynamic assemblies survive static batching',W.fans.every(p=>p.parent)&&W.valveWheels.every(g=>g.children.length>=5));
-      W.restoreHull();state=fresh();W.ship.position.set(0,0,0);W.ship.rotation.set(0,0,0);player.set(0,1.65,-1.15);yaw=0;pitch=.075;W.safeDoor.position.x=1.95;coffeeTime=0;$('coffee-cup').classList.add('hidden');updateMode();drawScreens();
+      W.restoreHull();state=fresh();W.ship.position.set(0,0,0);W.ship.rotation.set(0,0,0);player.set(0,1.65,-1.15);yaw=0;pitch=.075;W.safeDoor.position.x=1.95;coffeeTime=0;updateMode();drawScreens();
     }
     if(testMode){start();if(testMode==='cabin'){state.seated=false;player.set(0,1.62,1.6);yaw=Math.PI;pitch=-.06;}if(testMode==='pipes'){state.layer='pipes';state.seated=false;player.set(0,-1.3,4.4);yaw=0;pitch=0;}if(testMode==='external'){toggleExternal(true);}if(testMode==='damage'){toggleExternal(true);spawnImpact(true);for(let i=0;i<200;i++)simulate(.05);externalYaw=state.damages[0]?.pos[0]>0?1.05:-1.05;externalPitch=.08;}updateMode();}
     // Only available in the explicit, non-saving test mode; never part of a voyage.
