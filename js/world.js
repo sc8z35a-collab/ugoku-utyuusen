@@ -130,9 +130,6 @@ window.B29 = (() => {
   for(const z of [-3.4,.3,3.6,7,10.4,13.5]){
     const points=[];for(let k=0;k<=28;k++){const a=-1.42+k/28*2.84;points.push([Math.sin(a)*3.63,1.05+Math.cos(a)*3.24,z]);}tube(points,.105,M.dark);
     for(const side of [-1,1]){box(.12,.11,.52,side*2.7,3.04,z,M.lightPanel);box(.11,.02,.38,side*2.7,2.978,z,M.glow);}
-    const section=z<0?'01 / FLIGHT DECK':z<7?'02 / HABITAT':z<12?'03 / QUIET QUARTERS':'04 / AIRLOCK';
-    label(section,2.4,.22,0,3.7,z-.12,'#a4b1a8').rotation.y=Math.PI;
-    label(section,2.4,.22,0,3.7,z+.12,'#a4b1a8');
   }
   // A central monitor sits in the physical dashboard, never in a HUD modal.
   function monitor(x,y,z,ry=0,rx=0,size=1.65,id='main'){
@@ -168,10 +165,8 @@ window.B29 = (() => {
   box(.86,.7,.7,-2.65,.38,1.48,M.dark);const maker=box(.52,.65,.39,-2.65,1.05,1.48,M.black);box(.32,.06,.17,-2.65,1.35,1.71,M.pipe);box(.065,.035,.02,-2.48,1.22,1.682,M.glow);interactive(maker,'coffee','コーヒーを淹れる','coffee');
   const cup=cyl(.11,.085,.19,-2.65,.84,1.72,M.cream);const coffee=cyl(.087,.087,.01,-2.65,.94,1.72,mat(0x37271e,.1,.6));
   const handle=new T.Mesh(new T.TorusGeometry(.075,.021,7,14),M.cream);handle.position.set(-2.53,.86,1.72);ship.add(handle);
-  label('COFFEE / TAKE IT SLOW',.75,.16,-2.65,1.65,1.7,'#d3c9ad');
   monitor(-3.04,1.93,3.4,Math.PI/2,0,1.47,'living');
   for(let y=1.5;y<2.8;y+=.6){box(.54,.065,1.5,-3.22,y,5.1,M.panel);for(let i=0;i<6;i++){const book=box(.22,.25+random()*.13,.06,-3.18,y+.16,4.54+i*.15,[M.cream,M.fabric,M.orange,M.dark][i%4]);book.rotation.x=(random()-.5)*.1;}}
-  const photo=label('HOME · 2041',.52,.18,-3.09,2.68,4.9,'#d1ccac');photo.rotation.y=Math.PI/2;
   // right-side bathroom: enclosure glass, shower pipes, secondary monitor.
   box(1.18,.07,2.5,2.7,.02,3.5,M.lightPanel);collider(3.17,3.5,.25,2.5);
   const showerGlass=box(.035,2.2,2.2,1.95,1.14,4.3,new T.MeshPhysicalMaterial({color:0x90b0b0,transparent:true,opacity:.12,roughness:.16,metalness:.15,side:T.DoubleSide,depthWrite:false}));
@@ -179,7 +174,6 @@ window.B29 = (() => {
   const shower=cyl(.2,.17,.055,2.7,2.66,3,M.pipe);interactive(shower,'shower','シャワー / 水循環を切り替え','shower');
   const valve=cyl(.14,.14,.06,3.07,1.05,3,M.orange);valve.rotation.z=Math.PI/2;interactive(valve,'shower','シャワーを使う','shower');
   monitor(3.03,1.83,4.8,-Math.PI/2,0,1.3,'bath');
-  label('RECYCLED WATER / 98%',1.1,.16,2.7,2.15,1,'#b4cec8');
   const drops=[];for(let i=0;i<90;i++)drops.push(2.7+(random()-.5)*.3,random()*2.5,3+(random()-.5)*.3);
   const dg=new T.BufferGeometry();dg.setAttribute('position',new T.Float32BufferAttribute(drops,3));W.showerDrops=new T.Points(dg,new T.PointsMaterial({color:0xbedbe2,size:.022,transparent:true,opacity:.7}));W.showerDrops.visible=false;ship.add(W.showerDrops);
   // Central floor maintenance access and ladder.
@@ -620,6 +614,111 @@ window.B29 = (() => {
     const plumeMaterial=new T.ShaderMaterial({uniforms:{power:{value:.18},time:{value:0}},vertexShader:'varying vec2 vUv; void main(){vUv=uv;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0);}',fragmentShader:'uniform float power;uniform float time;varying vec2 vUv;void main(){float a=pow(1.0-vUv.y,2.0)*power*(.82+.18*sin(vUv.y*42.0-time*11.0));gl_FragColor=vec4(.27,.76,1.0,a);}',transparent:true,depthWrite:false,side:T.DoubleSide,blending:T.AdditiveBlending});
     const plume=new T.Mesh(new T.CylinderGeometry(.04,.4,2.8,32,1,true),plumeMaterial);plume.rotation.x=Math.PI/2;plume.position.set(x,-.6,18.2);ship.add(plume);W.enginePlumes.push(plume);
   }
+  // Inhabited spaces: real furnishings, with no floating decorative captions.
+  // Fixture coordinates stay outside the central passage and existing service rays.
+  const habitat=W.habitat={fixtures:[],water:false,cabinet:false,taskLight:true};
+  function fixture(name,x,z,rotation=0){const g=new T.Group();g.name=name;g.position.set(x,0,z);g.rotation.y=rotation;ship.add(g);habitat.fixtures.push(g);return g;}
+  function usableGroup(group,id,name,action){group.traverse(o=>{if(o.isMesh)interactive(o,id,name,action);});}
+  // Compact galley: recessed stainless bowl, curved tap, induction ring and dish rack.
+  const galley=fixture('galley',3.12,1.56,-Math.PI/2);
+  box(1.22,.1,.75,0,.12,0,M.dark,galley);
+  for(const x of [-.59,.59])box(.055,.79,.72,x,.54,0,blueSteel,galley);
+  box(1.18,.74,.04,0,.55,-.34,M.panel,galley);
+  box(.045,.73,.69,0,.54,0,M.dark,galley);
+  box(1.2,.045,.68,0,.22,0,M.panel,galley);
+  // A true opening in the counter, rather than a bowl intersecting a solid slab.
+  for(const z of [-.3,.3])box(1.28,.065,.16,0,.96,z,enamel,galley);
+  box(.09,.065,.44,-.59,.96,0,enamel,galley);
+  box(.64,.065,.44,.32,.96,0,enamel,galley);
+  const bowl=lathe([[0,-.2],[.1,-.2],[.17,-.14],[.205,0],[.225,.014],[.24,.012]],-.29,.966,0,M.pipe,galley);
+  bowl.material=M.pipe.clone();bowl.material.side=T.DoubleSide;
+  cyl(.032,.032,.008,-.29,.776,0,M.dark,galley);
+  tube([[-.29,1,-.23],[-.29,1.38,-.23],[-.29,1.43,-.04],[-.29,1.32,.02]],.022,M.pipe,galley);
+  const tap=fixture('tap-control',3.25,1.65,-Math.PI/2);
+  cyl(.045,.055,.14,0,1.07,0,M.pipe,tap);beam([0,1.14,0],[.12,1.17,0],.018,M.orange,tap);
+  usableGroup(tap,'tap','流し台の水を切り替える','tap');
+  const waterMaterial=new T.MeshBasicMaterial({color:0xa1dbe7,transparent:true,opacity:.55,depthWrite:false});
+  const water=cyl(.011,.017,.48,-.29,1.06,.02,waterMaterial,galley);water.visible=false;W.movingParts.push(water);W.sinkWater=water;
+  box(.37,.014,.39,.32,1.001,0,M.black,galley);
+  for(const radius of [.095,.128]){const coil=ring(radius,.005,.32,1.012,0,M.copper,galley);coil.rotation.x=Math.PI/2;}
+  // Open storage contains actual cups, meal tins and a folded cloth.
+  for(let i=0;i<3;i++){cyl(.055,.055,.19,-.45+i*.16,.34,.02,i===1?M.orange:M.cream,galley);cyl(.057,.057,.015,-.45+i*.16,.445,.02,M.pipe,galley);}
+  box(.42,.055,.28,.3,.27,.02,insulation,galley);
+  const cabinet=new T.Group();cabinet.position.set(-.58,.55,.37);galley.add(cabinet);W.storageDoor=cabinet;W.movingParts.push(cabinet);
+  box(.55,.7,.045,.275,0,0,blueSteel,cabinet);beam([.46,-.12,.04],[.46,.12,.04],.015,brass,cabinet);
+  usableGroup(cabinet,'cabinet','収納扉を開閉','cabinet');
+  box(.53,.7,.045,.31,.55,.37,blueSteel,galley);beam([.11,.44,.41],[.11,.66,.41],.015,brass,galley);
+  box(1.24,.075,.44,0,1.91,-.11,M.panel,galley);
+  box(1.22,.47,.035,0,2.18,-.31,insulation,galley);
+  for(const x of [-.6,0,.6])box(.035,.46,.42,x,2.17,-.1,M.dark,galley);
+  for(let i=0;i<4;i++){cyl(.073,.065,.18,-.45+i*.29,2.05,-.07,enamel,galley);const handle=ring(.048,.012,-.36+i*.29,2.08,-.07,enamel,galley);}
+  beam([-.59,2.06,.115],[.59,2.06,.115],.017,brass,galley);
+  box(1.03,.012,.045,0,1.862,.07,M.amber,galley);
+  collider(3.06,1.56,.85,1.28);
+  const cabinetObstacle={x:2.44,z:1.15,w:0,d:0,disabled:true};W.colliders.push(cabinetObstacle);
+  // A lit seedling rack occupies a previously empty cockpit-side recess.
+  const garden=fixture('hydroponics',3.15,-.65,-Math.PI/2);
+  for(const x of [-.64,.64])box(.055,2.48,.46,x,1.28,0,M.dark,garden);
+  box(1.29,2.45,.04,0,1.28,-.23,M.panel,garden);
+  for(const y of [.48,1.25,2.1]){
+    box(1.26,.07,.51,0,y,0,M.pipe,garden);
+    box(1.14,.04,.38,0,y+.045,0,M.dark,garden);
+    if(y>2)continue;
+    for(let i=0;i<4;i++){
+      const x=-.44+i*.29;cyl(.105,.08,.14,x,y+.12,0,enamel,garden);cyl(.092,.092,.01,x,y+.195,0,M.black,garden);
+      for(let j=0;j<5;j++){const a=j*2.4+i,h=.16+hash(i+j,y)*.14;beam([x,y+.19,0],[x+Math.cos(a)*.06,y+.19+h,Math.sin(a)*.06],.005,sage,garden);const leaf=orb(.035,.013,.095,x+Math.cos(a)*.065,y+.19+h,Math.sin(a)*.065,sage,garden);leaf.rotation.set(.25,a,.4);}
+    }
+    box(1.15,.025,.08,0,y+.62,-.02,M.glow,garden);
+    beam([-.59,y+.14,.24],[.59,y+.14,.24],.012,brass,garden);
+  }
+  tube([[.57,.25,-.18],[.57,2.35,-.18],[-.55,2.35,-.18]],.016,M.copper,garden);
+  box(.38,.26,.36,0,.23,0,blueSteel,garden);collider(3.15,-.65,.6,1.4);
+  // Engineering workbench: vise, driver, solder spool, circuit board and task lamp.
+  const bench=fixture('workbench',3.05,9.8,-Math.PI/2);
+  for(const x of [-.63,.63])for(const z of [-.26,.25])box(.055,.86,.055,x,.46,z,M.dark,bench);
+  box(1.4,.09,.76,0,.92,0,insulation,bench);box(1.32,.05,.62,0,.23,0,M.panel,bench);
+  box(.62,.045,.48,-.27,.99,0,rubber,bench);box(.33,.018,.24,-.3,1.024,.01,sage,bench);
+  for(let i=0;i<4;i++){box(.037,.023,.07,-.4+i*.07,1.044,.01,M.black,bench);for(const dz of [-.055,.055])box(.025,.008,.009,-.4+i*.07,1.038,.01+dz,brass,bench);}
+  box(.26,.085,.22,.44,1.015,.12,blueSteel,bench);
+  for(const x of [.37,.52])box(.045,.1,.24,x,1.09,.12,M.pipe,bench);
+  beam([.25,1.045,.12],[.67,1.045,.12],.018,M.pipe,bench);beam([.66,.96,.12],[.66,1.15,.12],.015,M.dark,bench);
+  cyl(.09,.09,.1,-.53,1.035,-.2,M.copper,bench);for(const y of [.983,1.088])cyl(.11,.11,.014,-.53,y,-.2,M.pipe,bench);
+  beam([-.15,1.02,.2],[.08,1.02,.26],.012,M.pipe,bench);beam([.08,1.02,.26],[.2,1.02,.29],.023,M.orange,bench);
+  box(.54,.25,.44,.12,.38,0,blueSteel,bench);box(.09,.1,.01,.12,.39,.23,brass,bench);
+  const taskLamp=new T.Group();taskLamp.position.set(.5,0,-.24);bench.add(taskLamp);
+  cyl(.09,.12,.035,0,.986,0,M.dark,taskLamp);beam([0,1,0],[0,1.39,0],.018,M.pipe,taskLamp);beam([0,1.39,0],[-.28,1.56,.12],.018,M.pipe,taskLamp);
+  const shade=cyl(.055,.145,.13,-.28,1.53,.12,blueSteel,taskLamp);shade.rotation.z=-.18;
+  const taskBulb=cyl(.115,.115,.01,-.28,1.465,.12,M.amber,taskLamp);W.movingParts.push(taskBulb);
+  usableGroup(taskLamp,'task-light','作業灯を切り替える','task-light');
+  const taskLight=new T.PointLight(0xffd6a2,2.4,2.5,1.8);taskLight.position.set(-.28,1.43,.12);taskLamp.add(taskLight);W.taskLight=taskLight;
+  collider(3.05,9.8,.78,1.42);
+  // Relief supplies in the aft alcove: locker frames, harnesses and captive crates.
+  const locker=fixture('aft-lockers',-3.05,13.75,Math.PI/2);
+  box(1.2,2.4,.6,0,1.24,0,M.dark,locker);
+  for(const x of [-.3,.3]){
+    box(.55,2.26,.055,x,1.24,.32,blueSteel,locker);
+    beam([x+.17,1.01,.37],[x+.17,1.36,.37],.018,brass,locker);
+    for(let i=0;i<5;i++)box(.32,.015,.009,x,2.05+i*.042,.351,M.black,locker);
+    box(.25,.07,.015,x,.4,.353,M.orange,locker);
+  }
+  collider(-3.05,13.75,.66,1.28);
+  // Soft-sided overhead stowage, recessed arch lights and threshold tread strips.
+  for(const z of [.75,6.1,10.75]){
+    beam([-1.8,2.65,z],[-1.32,3.2,z],.1,M.dark);beam([1.8,2.65,z],[1.32,3.2,z],.1,M.dark);
+    beam([-1.32,3.2,z],[1.32,3.2,z],.095,M.dark);
+    box(2.12,.016,.065,0,3.102,z,M.glow);
+    for(const dz of [-.085,.085])box(3.1,.007,.028,0,.001,z+dz,M.pipe);
+  }
+  for(const z of [2.1,4.2,8.0,9.6]){
+    box(.67,.48,1.17,-2.64,3.45,z,insulation);
+    for(const dz of [-.42,.42]){box(.7,.032,.045,-2.64,3.195,z+dz,leather);box(.1,.035,.1,-2.49,3.169,z+dz,M.pipe);}
+  }
+  const cabinDetails={water,cabinet,cabinetObstacle,taskLight,taskBulb};
+  W.setHabitat=(action)=>{
+    if(action==='tap')habitat.water=!habitat.water;
+    if(action==='cabinet')habitat.cabinet=!habitat.cabinet;
+    if(action==='task-light')habitat.taskLight=!habitat.taskLight;
+  };
   W.mechanismState={coffee:0,layer:'cabin',safe:false,speed:.2,faults:[],night:false};
   W.triggerMechanism=(action,index)=>{if(action==='coffee')W.mechanismState.coffee=5;if(action==='pipe'&&W.valveWheels[index])W.valveWheels[index].userData.turn+=Math.PI*1.5;};
   W.updateMechanisms=(dt,time,status={})=>{
@@ -627,6 +726,14 @@ window.B29 = (() => {
     door.position.x+=((s.safe?0:1.95)-door.position.x)*blend;
     hatchPivot.rotation.x+=((s.layer==='pipes'?-1.38:0)-hatchPivot.rotation.x)*blend;
     W.fans.forEach((f,i)=>f.rotation.z-=dt*(s.faults.length?2:5)*(i?1:-1));
+    if(s.faults.length)habitat.water=false;
+    cabinDetails.water.visible=habitat.water;
+    cabinDetails.water.scale.x=.9+Math.sin(time*18)*.1;
+    cabinDetails.cabinet.rotation.y+=((habitat.cabinet?-1.3:0)-cabinDetails.cabinet.rotation.y)*blend;
+    cabinDetails.cabinetObstacle.disabled=!habitat.cabinet&&Math.abs(cabinDetails.cabinet.rotation.y)<.1;
+    cabinDetails.cabinetObstacle.w=.74;cabinDetails.cabinetObstacle.d=.6;
+    cabinDetails.taskLight.intensity=habitat.taskLight?2.4:0;
+    cabinDetails.taskBulb.material=habitat.taskLight?M.amber:M.cream;
     W.valveWheels.forEach(g=>g.rotation.x+=(g.userData.turn-g.rotation.x)*blend);
     W.gauges.forEach((g,i)=>g.rotation.z=-.55+Math.sin(time*.45+i)*.035+(s.faults.length?.8:0));
     W.pipeNodes.forEach((n,i)=>n.userData.indicator.material=s.faults.includes(i)?M.red:M.glow);
