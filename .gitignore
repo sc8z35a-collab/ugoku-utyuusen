@@ -5,3 +5,4 @@
 artifacts/
 baseline/
 production-check/
+.cache_sheet*.png

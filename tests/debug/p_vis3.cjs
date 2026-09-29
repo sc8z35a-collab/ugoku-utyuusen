@@ -1,0 +1,10 @@
+const {open,launch,view}=require('./harness.cjs');
+(async()=>{const b=await launch();const {page}=await open(b,{query:'?check=1&view=cabin'});
+await page.evaluate(()=>{__g.state.speed=0;});
+await view(page,'x_antenna_ceiling',[0.2,1.62,7.2],[.5,4,9]);
+await view(page,'x_saferoom_floor',[0,1.62,12.4],[2.2,0,14]);
+await view(page,'x_rear_close',[0,-1,21],[0,.6,15]);
+await view(page,'x_lettering',[9,1.4,5],[3.8,1.4,5]);
+await view(page,'x_reverse_labels',[0,1.62,9],[0,1.6,1]);
+await view(page,'x_rear_under',[0,-4,19],[0,0,15]);
+await b.close();})().catch(e=>{console.error(e);process.exit(1)});
