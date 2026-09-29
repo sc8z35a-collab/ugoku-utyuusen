@@ -3,13 +3,15 @@
 window.B29 = (() => {
   const W = { interactables: [], colliders: [], hull: [], monitors: [], loose: [], lamps: [], damageVisuals: [], damageCracks: [], movingParts: [], gauges: [], valveWheels: [], fans: [], enginePlumes: [] };
   const T = window.THREE;
-  if (!T) { document.getElementById('loading-error').classList.remove('hidden'); document.getElementById('loading-error').textContent = '3Dエンジンを読み込めませんでした。インターネット接続を確認して再読み込みしてください。'; return null; }
+  if (!T) { document.body.classList.add('load-failed'); document.getElementById('loading-error').classList.remove('hidden'); document.getElementById('loading-error').textContent = '3Dエンジンを読み込めませんでした。インターネット接続を確認して再読み込みしてください。'; return null; }
   let seed = 2941;
   const random = () => { seed = (seed * 16807) % 2147483647; return (seed - 1) / 2147483646; };
   W.random = random;
   const scene = W.scene = new T.Scene();
   scene.background = new T.Color(0x03070e);
-  const renderer = W.renderer = new T.WebGLRenderer({canvas: document.getElementById('space-canvas'), antialias: true, powerPreference: 'high-performance'});
+  let renderer;
+  try { renderer = W.renderer = new T.WebGLRenderer({canvas: document.getElementById('space-canvas'), antialias: true, powerPreference: 'high-performance'}); }
+  catch (error) { const box = document.getElementById('loading-error'); box.classList.remove('hidden'); box.textContent = 'この端末またはブラウザーでは3D表示（WebGL）を利用できません。ハードウェアアクセラレーションを有効にするか、別のブラウザーでお試しください。'; document.body.classList.add('load-failed'); return null; }
   renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.65));
   renderer.setSize(innerWidth, innerHeight);
   renderer.outputColorSpace = T.SRGBColorSpace;
@@ -17,7 +19,7 @@ window.B29 = (() => {
   renderer.toneMappingExposure = 1.15;
   renderer.shadowMap.enabled=true;renderer.shadowMap.type=T.PCFSoftShadowMap;
   const compactGPU=matchMedia('(pointer: coarse)').matches;
-  const camera = W.camera = new T.PerspectiveCamera(65, innerWidth / innerHeight, .055, 18000);
+  const camera = W.camera = new T.PerspectiveCamera(65, innerWidth / innerHeight, .055, 60000);
   const ship = W.ship = new T.Group(); scene.add(ship); ship.add(camera);
   camera.position.set(0,1.65,-1.15); camera.rotation.order = 'YXZ'; camera.rotation.x = .075;
   const mat = (color, metalness=.25, roughness=.65) => new T.MeshStandardMaterial({color,metalness,roughness});
@@ -55,11 +57,12 @@ window.B29 = (() => {
   scene.add(new T.HemisphereLight(0xa5c5d5,0x161e25,.72));
   const sun=new T.DirectionalLight(0xffefd1,2.8),sunOffset=new T.Vector3(-35,50,-45);sun.position.copy(sunOffset);sun.target=ship;scene.add(sun);
   sun.castShadow=true;sun.shadow.mapSize.setScalar(compactGPU?1024:2048);Object.assign(sun.shadow.camera,{left:-25,right:25,top:25,bottom:-25,near:1,far:130});sun.shadow.bias=-.00025;sun.shadow.normalBias=.035;
-  scene.onBeforeRender=()=>{sun.position.copy(ship.position).add(sunOffset);sun.updateMatrixWorld();};
-  const cabinLight=new T.PointLight(0xb5d5d8,22,17,1.4);cabinLight.position.set(0,3.4,-2);ship.add(cabinLight);
+  // The star shell is effectively at infinity: keep it centred on the vessel wherever it travels.
+  scene.onBeforeRender=()=>{sun.position.copy(ship.position).add(sunOffset);sun.updateMatrixWorld();W.stars.position.copy(ship.position);W.stars.updateMatrixWorld();};
+  const cabinLight=new T.PointLight(0xb5d5d8,22,17,1.4);cabinLight.position.set(0,3.4,-2);ship.add(cabinLight);W.nightLights=[cabinLight];
   for(const z of [3,8,12]){const l=new T.PointLight(z===12?0xa9d9dc:0xffd9a7,19,9,1.5);l.position.set(0,3,z);l.userData.dayIntensity=19;ship.add(l);W.lamps.push(l);}
   const screenBounce=new T.PointLight(0x7fc9c2,2.8,4,1.6);screenBounce.position.set(0,1.4,-3.9);ship.add(screenBounce);
-  const galleyLight=new T.PointLight(0xffc885,5,3.6,1.5);galleyLight.position.set(-2.65,2.15,1.9);ship.add(galleyLight);
+  const galleyLight=new T.PointLight(0xffc885,5,3.6,1.5);galleyLight.position.set(-2.65,2.15,1.9);ship.add(galleyLight);W.nightLights.push(galleyLight);
   const readingLight=new T.SpotLight(0xffdda7,38,9,1.05,.7,1.5);readingLight.position.set(-1,3.3,2.7);readingLight.target.position.set(-2.4,.4,3.5);ship.add(readingLight,readingLight.target);readingLight.castShadow=true;readingLight.shadow.mapSize.setScalar(compactGPU?512:1024);readingLight.shadow.bias=-.0003;readingLight.shadow.normalBias=.018;
   // A small procedural reflection environment gives metal and glass a soft sheen.
   const reflections=texture(512,256,(c,w,h)=>{const g=c.createLinearGradient(0,0,0,h);g.addColorStop(0,'#496779');g.addColorStop(.47,'#8c9d9e');g.addColorStop(.53,'#273940');g.addColorStop(1,'#111a20');c.fillStyle=g;c.fillRect(0,0,w,h);c.fillStyle='#efe7cd';c.fillRect(45,48,100,17);c.fillStyle='#cadfe1';c.fillRect(300,70,140,12);});
@@ -68,7 +71,7 @@ window.B29 = (() => {
   const positions=[],colors=[];
   for(let i=0;i<4600;i++){const a=random()*Math.PI*2,b=Math.acos(2*random()-1),r=7000+random()*4000;positions.push(r*Math.sin(b)*Math.cos(a),r*Math.cos(b),r*Math.sin(b)*Math.sin(a));const c=new T.Color().setHSL(.52+random()*.17,.1+random()*.25,.45+random()*.5);colors.push(c.r,c.g,c.b);}
   const starGeo=new T.BufferGeometry();starGeo.setAttribute('position',new T.Float32BufferAttribute(positions,3));starGeo.setAttribute('color',new T.Float32BufferAttribute(colors,3));
-  scene.add(new T.Points(starGeo,new T.PointsMaterial({size:3.7,sizeAttenuation:true,vertexColors:true,transparent:true,opacity:.85,depthWrite:false})));
+  const stars=W.stars=new T.Points(starGeo,new T.PointsMaterial({size:3.7,sizeAttenuation:true,vertexColors:true,transparent:true,opacity:.85,depthWrite:false}));scene.add(stars);
   function hash(x,y){let n=Math.sin(x*127.1+y*311.7)*43758.5453123;return n-Math.floor(n);}
   function noise(x,y){const a=Math.floor(x),b=Math.floor(y);let u=x-a,v=y-b;u=u*u*(3-2*u);v=v*v*(3-2*v);return (hash(a,b)*(1-u)+hash(a+1,b)*u)*(1-v)+(hash(a,b+1)*(1-u)+hash(a+1,b+1)*u)*v;}
   function fbm(x,y){return noise(x,y)*.52+noise(x*2,y*2)*.26+noise(x*4,y*4)*.13+noise(x*8,y*8)*.065;}
@@ -76,7 +79,7 @@ window.B29 = (() => {
   function inside(x,y,p){let c=false;for(let i=0,j=p.length-1;i<p.length;j=i++){if(((p[i][1]>y)!==(p[j][1]>y))&&(x<(p[j][0]-p[i][0])*(y-p[i][1])/(p[j][1]-p[i][1])+p[i][0]))c=!c;}return c;}
   const earthTexture=texture(1024,512,(ctx,w,h)=>{const img=ctx.createImageData(w,h);for(let y=0;y<h;y++)for(let x=0;x<w;x++){const u=x/w,v=y/h,n=fbm(u*65,v*50);const xx=u+(noise(u*80,v*80)-.5)*.018,yy=v+(noise(u*75+2,v*75)-.5)*.018;const land=continents.some(p=>inside(xx,yy,p));let r=12+n*12,g=38+n*22,b=63+n*30;if(land){const desert=Math.max(0,1-Math.abs(v-.43)*10)*noise(u*16,v*16);r=38+n*48+desert*58;g=58+n*49+desert*30;b=44+n*32;}const cloud=fbm(u*32+Math.sin(v*28)*1.6,v*54);let cc=Math.max(0,(cloud-.51)*4.8);cc=Math.min(.92,cc);if(v<.06||v>.94)cc=Math.max(cc,.85);const idx=(y*w+x)*4;img.data[idx]=r*(1-cc)+220*cc;img.data[idx+1]=g*(1-cc)+232*cc;img.data[idx+2]=b*(1-cc)+228*cc;img.data[idx+3]=255;}ctx.putImageData(img,0,0);});
   const earth = W.earth = new T.Mesh(new T.SphereGeometry(470,88,64),new T.MeshStandardMaterial({map:earthTexture,roughness:1,metalness:0}));
-  earth.position.set(435,205,-1170);earth.rotation.set(.08,-1.72,-.27);scene.add(earth);
+  earth.position.set(505,240,-1170);earth.rotation.set(.08,-1.72,-.27);scene.add(earth);
   const atmosphere=new T.Mesh(new T.SphereGeometry(478,72,48),new T.ShaderMaterial({vertexShader:'varying vec3 vN; varying vec3 vV; void main(){vec4 mv=modelViewMatrix*vec4(position,1.0);vN=normalize(normalMatrix*normal);vV=normalize(-mv.xyz);gl_Position=projectionMatrix*mv;}',fragmentShader:'varying vec3 vN;varying vec3 vV;void main(){float f=pow(1.0-abs(dot(normalize(vN),normalize(vV))),3.7);gl_FragColor=vec4(0.26,0.57,0.79,f*0.64);}',transparent:true,side:T.FrontSide,depthWrite:false,blending:T.AdditiveBlending}));atmosphere.position.copy(earth.position);scene.add(atmosphere);
   const moon=new T.Mesh(new T.SphereGeometry(34,32,24),mat(0x989e9b,.1,1));moon.position.set(-800,340,-2300);scene.add(moon);
   // Exterior hull is a tessellated ellipse, divided into physically deformable plates.
@@ -91,19 +94,29 @@ window.B29 = (() => {
   }
   // Rounded endcap and exterior equipment.
   const rearGeo=new T.SphereGeometry(1,32,18,0,Math.PI*2,.31,Math.PI/2-.31);rearGeo.rotateX(Math.PI/2);const rear=new T.Mesh(rearGeo,hullMat);rear.scale.set(3.8,3.5,1.5);rear.position.set(0,1,14);ship.add(rear);
+  // Pressure collar: closes the gap between the cap opening and the round airlock door.
+  {const collar=new T.Shape();collar.absellipse(0,1.1,1.32,1.32,0,Math.PI*2,false,0);const hole=new T.Path();hole.absarc(0,1.25,.98,0,Math.PI*2,true);collar.holes.push(hole);const cm=M.dark.clone();cm.side=T.DoubleSide;const c=new T.Mesh(new T.ShapeGeometry(collar,48),cm);c.position.z=15.4;ship.add(c);}
   for(const x of [-2.2,2.2]){const engine=cyl(.66,.89,2.8,x,-.6,15.2,M.dark);engine.rotation.x=Math.PI/2;const ring=cyl(.67,.67,.16,x,-.6,16.62,M.pipe);ring.rotation.x=Math.PI/2;const exhaust=cyl(.48,.56,.04,x,-.6,16.72,new T.MeshBasicMaterial({color:0x8dc8d5}));exhaust.rotation.x=Math.PI/2;}
   for(const side of [-1,1]){
     beam([side*3.5,1.5,9],[side*7,1.5,9],.12,M.pipe);
     const panel=box(3.5,.07,6,side*6,1.5,9,mat(0x1c3342,.65,.37));
     for(let j=0;j<7;j++)box(3.5,.015,.025,side*6,1.546,6.1+j*.92,M.pipe);
     for(let j=0;j<5;j++)box(.025,.015,6,side*(4.3+j*.86),1.546,9,M.pipe);
-    const lettering=label('B – 2 9',3,.7,side*3.82,1.35,5,'#d1d7c4');lettering.rotation.y=side*Math.PI/2;
+    const ly=2.55,lx=3.8*Math.sqrt(1-((ly-1)/3.5)**2),lettering=label('B – 2 9',3,.6,side*(lx+.03),ly,5,'#d1d7c4');lettering.lookAt(side*(lx+1),ly+(ly-1)/(3.5*3.5)*(3.8*3.8)/lx,5);
     for(let z=0;z<13;z+=2.8)beam([side*3.85,1.55,z],[side*3.85,1.55,z+1.1],.035,M.orange);
   }
   const antenna=cyl(.035,.05,2.7,.5,5.2,9,M.pipe);const dish=new T.Mesh(new T.SphereGeometry(.65,20,12,0,Math.PI*2,0,.8),M.lightPanel);dish.rotation.z=.5;dish.position.set(.5,6.6,9);ship.add(dish);
   // Cockpit: broad real transparent windows, chamfered struts, low dashboard.
   const frontShape=new T.Shape();frontShape.moveTo(-3.75,0);frontShape.lineTo(3.75,0);frontShape.lineTo(3.15,3.7);frontShape.lineTo(1.9,4.2);frontShape.lineTo(-1.9,4.2);frontShape.lineTo(-3.15,3.7);frontShape.closePath();
   const frontGlass=new T.Mesh(new T.ShapeGeometry(frontShape),M.glass);frontGlass.position.z=-7.1;ship.add(frontGlass);
+  // Close the forward section: a roof and a lower chin lofted from the windscreen frame to the hull ring.
+  function loft(front,back,material){const n=front.length,pos=[],idx=[];for(const p of front)pos.push(p[0],p[1],-7.1);for(const p of back)pos.push(p[0],p[1],-4.02);for(let i=0;i<n-1;i++)idx.push(i,i+1,n+i,i+1,n+i+1,n+i);const g=new T.BufferGeometry();g.setAttribute('position',new T.Float32BufferAttribute(pos,3));g.setIndex(idx);g.computeVertexNormals();const uv=[];for(let k=0;k<2;k++)for(let i=0;i<n;i++)uv.push(i/(n-1),k);g.setAttribute('uv',new T.Float32BufferAttribute(uv,2));const m=new T.Mesh(g,material);ship.add(m);return m;}
+  function polyline(points,n){const seg=[];let total=0;for(let i=1;i<points.length;i++){const l=Math.hypot(points[i][0]-points[i-1][0],points[i][1]-points[i-1][1]);seg.push(l);total+=l;}const out=[];for(let k=0;k<n;k++){let d=total*k/(n-1),i=0;while(i<seg.length-1&&d>seg[i]){d-=seg[i];i++;}const t=Math.min(1,d/seg[i]);out.push([points[i][0]+(points[i+1][0]-points[i][0])*t,points[i][1]+(points[i+1][1]-points[i][1])*t]);}return out;}
+  const shellMat=M.hull.clone();shellMat.side=T.DoubleSide;const N=24;
+  {const top=Math.acos(2.2/3.5),back=[[-3.45,3.2]];for(let k=0;k<N-2;k++){const a=-top+2*top*k/(N-3);back.push([Math.sin(a)*3.8,1+Math.cos(a)*3.5]);}back.push([3.45,3.2]);
+   loft(polyline([[-3.15,3.7],[-1.9,4.2],[1.9,4.2],[3.15,3.7]],N),back,shellMat);}
+  {const edge=Math.acos(-1/3.5),back=[];for(let k=0;k<N;k++){const a=-edge-(2*Math.PI-2*edge)*k/(N-1);back.push([Math.sin(a)*3.8,1+Math.cos(a)*3.5]);}
+   loft(polyline([[-3.75,0],[3.75,0]],N),back,shellMat);}
   beam([-3.75,0,-7.1],[-3.15,3.7,-7.1],.15);beam([3.75,0,-7.1],[3.15,3.7,-7.1],.15);
   beam([-3.15,3.7,-7.1],[-1.9,4.2,-7.1],.16);beam([3.15,3.7,-7.1],[1.9,4.2,-7.1],.16);
   beam([-1.9,4.2,-7.1],[1.9,4.2,-7.1],.18);beam([-3.75,.45,-7.1],[3.75,.45,-7.1],.17);
@@ -124,7 +137,7 @@ window.B29 = (() => {
   for(let z=-6.5;z<14;z+=1){for(const x of [-2.45,0,2.45]){if(Math.abs(z-4.5)<.1&&x===0)continue;box(x===0?2.28:2.5,.12,.975,x,-.08,z,M.floor);}
     if(z>-1&&z<12)for(const x of [-1.12,1.12])box(.025,.012,.45,x,.002,z,M.amber);
   }
-  box(7.2,.12,16,0,-2.44,5,M.dark);
+  box(1.4,.08,16,0,-2.4,5,M.dark);
   for(let z=-2;z<14;z+=.28)box(1.35,.025,.055,0,-2.355,z,M.pipe);
   // Ring ribs echo a salvaged submarine / compact spacecraft.
   for(const z of [-3.4,.3,3.6,7,10.4,13.5]){
@@ -155,7 +168,7 @@ window.B29 = (() => {
   // Narrow pilot chair, visible when walking and from the exterior camera.
   const chair=new T.Group();chair.position.set(0,0,-.65);ship.add(chair);W.chair=chair;
   cyl(.14,.32,.42,0,.23,0,M.dark,chair);box(.88,.19,.83,0,.52,0,M.fabric,chair);const back=box(.86,.94,.17,0,1.02,.36,M.fabric,chair);back.rotation.x=.09;box(.52,.27,.15,0,1.61,.43,M.dark,chair);
-  for(const x of [-.52,.52]){beam([x,.3,.2],[x,.87,.2],.04,M.pipe,chair);box(.15,.12,.74,x,.92,0,M.dark,chair);}interactive(back,'chair','操縦席 / 座る','seat');
+  for(const x of [-.52,.52]){beam([x,.3,.2],[x,.87,.2],.04,M.pipe,chair);box(.15,.12,.74,x,.92,0,M.dark,chair);}interactive(back,'chair','操縦席 / 座る','seat');collider(0,-.65,.9,.9);
   // Cabin alcoves: offset walls, storage and curved archways rather than a rectangular house.
   for(const z of [.75,6.1,10.75])for(const side of [-1,1]){box(1.7,2.5,.14,side*2.65,1.23,z,M.panel);beam([side*1.85,.02,z],[side*1.85,2.9,z],.07,M.dark);}
   // lounge left: low couch, shelves, coffee maker, personal objects.
@@ -192,7 +205,7 @@ window.B29 = (() => {
     tube([[x,y,-3],[x,y,1.8],[x+side*.14,y-.15,2.2],[x+side*.14,y-.15,6.6],[x,y,7.1],[x,y,13]],i===0?.085:.045,i%2?M.copper:M.pipe);
     for(let z=0;z<13;z+=2.8){const joint=cyl(.11,.11,.14,x,y,z,i%2?M.copper:M.dark);joint.rotation.x=Math.PI/2;}
   }
-  for(let z=0;z<13;z+=2){tube([[-3,-1.45,z],[-2,-1.45,z],[-1.6,-1.7,z+.3],[1.6,-1.7,z+.3],[2,-1.25,z+.6],[3,-1.25,z+.6]],.045,M.copper);}
+  for(let z=0;z<13;z+=2){tube([[-2.55,-1.45,z],[-2,-1.45,z],[-1.6,-1.7,z+.3],[1.6,-1.7,z+.3],[2,-1.25,z+.6],[2.75,-1.25,z+.6]],.045,M.copper);}
   for(let i=0;i<6;i++){
     const side=i%2?1:-1,z=.8+i*1.9;
     const node=box(.32,.4,.5,side*1.35,-1.15,z,M.dark);box(.04,.08,.3,side*1.17,-1.15,z,M.glow);
@@ -210,10 +223,10 @@ window.B29 = (() => {
   tube([[3.14,2.5,7],[3.1,2.8,7.3],[2.8,2.8,8.9],[2.9,1.2,9.2]],.025,M.black);
   box(.82,.4,3.1,-2.92,.23,8.5,M.dark);box(.79,.17,2.9,-2.9,.5,8.5,M.fabric);box(.64,.12,.45,-2.9,.63,7.3,M.cream);box(.78,.07,1.5,-2.91,.62,9.1,mat(0x827c65,.05,1));collider(-2.92,8.5,.82,3.1);
   const sleepTarget=box(.03,.18,.28,-2.44,.72,8.7,M.glow);interactive(sleepTarget,'rest','寝台で少し休む','rest');
-  const kit=box(.55,.27,.42,1.99,.3,9.35,M.orange);box(.57,.03,.44,1.99,.45,9.35,M.dark);const kl=label('+ REPAIR',.45,.1,1.99,.32,9.568,'#efdfb8');interactive(kit,'repair-kit','修理キットを持つ','kit');
+  const kit=box(.55,.27,.42,1.99,.115,9.35,M.orange);box(.57,.03,.44,1.99,.265,9.35,M.dark);const kl=label('+ REPAIR',.45,.1,1.99,.135,9.568,'#efdfb8');interactive(kit,'repair-kit','修理キットを持つ','kit');W.repairKit=kit;
   for(let i=0;i<9;i++){
     const x=(i%2?1:-1)*(2+random()*.65),z=6.6+random()*3.8;
-    const item=box(.17+random()*.23,.18+random()*.15,.18+random()*.2,x,.2,z,i%3?M.cream:M.dark);item.rotation.y=random()*2;W.loose.push({mesh:item,velocity:new T.Vector3(),baseY:item.position.y});
+    const ih=.18+random()*.15,item=box(.17+random()*.23,ih,.18+random()*.2,x,-.02+ih/2,z,i%3?M.cream:M.dark);item.rotation.y=random()*2;W.loose.push({mesh:item,velocity:new T.Vector3(),baseY:item.position.y});
   }
   // Rear safe compartment with a physical closable bulkhead and EVA suit.
   const door=new T.Group();door.position.set(1.95,1.325,11.9);ship.add(door);W.safeDoor=door;W.movingParts.push(door);
@@ -231,7 +244,7 @@ window.B29 = (() => {
   const airlock=cyl(1.02,1.02,.2,0,1.25,15.48,M.dark);airlock.rotation.x=Math.PI/2;interactive(airlock,'airlock','エアロック / 船外へ・船内へ','airlock');
   const portal=new T.Mesh(new T.TorusGeometry(.84,.075,10,40),M.orange);portal.position.set(0,1.25,15.61);ship.add(portal);const text=label('EVA / SUIT REQUIRED',1.5,.2,0,1.27,15.35,'#d8bb8e');text.rotation.y=Math.PI;
   const externalDoor=box(.4,.4,.03,0,1.25,15.65,M.orange);interactive(externalDoor,'airlock','B-29 エアロック / 帰船','airlock');
-  monitor(-2.6,1.8,13,Math.PI/2,0,1.1,'safe');
+  monitor(-2.6,1.8,12.6,Math.PI/2,0,1.1,'safe');
   // Beacon station with real frame, solar arrays and drifting telecom nodes.
   const station=W.station=new T.Group();station.position.set(-135,36,-215);scene.add(station);
   const hub=cyl(3,3,12,0,0,0,M.lightPanel,station,16);hub.rotation.z=Math.PI/2;
@@ -253,13 +266,15 @@ window.B29 = (() => {
     const scar=new T.Mesh(new T.CircleGeometry(radius*.47,9),new T.MeshBasicMaterial({color:0x10171b,side:T.DoubleSide}));scar.position.z=.04;group.add(scar);
     for(let i=0;i<9;i++){const a=i/9*Math.PI*2,rr=radius*(.4+random()*.2);beam([Math.cos(a)*.12,Math.sin(a)*.12,.08],[Math.cos(a)*rr,Math.sin(a)*rr,.04],.012,M.black,group);}
     const hot=new T.Mesh(new T.TorusGeometry(radius*.25,.025,6,11),new T.MeshBasicMaterial({color:0xd68a61}));hot.position.z=.06;group.add(hot);
-    const target=new T.Mesh(new T.SphereGeometry(.28,12,8),new T.MeshBasicMaterial({color:0xe18b67,transparent:true,opacity:.13,depthWrite:false}));target.position.copy(p).addScaledVector(inward,depth+.12);ship.add(target);interactive(target,'damage-'+damage.id,'船体損傷 / 点検・応急修理','damage');target.userData.damage=damage.id;
-    const leakPos=[];for(let i=0;i<38;i++)leakPos.push((random()-.5)*.3,(random()-.5)*.3,random()*2);
+    const target=new T.Mesh(new T.SphereGeometry(.28,12,8),new T.MeshBasicMaterial({color:0xe18b67,transparent:true,opacity:.13,depthWrite:false}));target.position.copy(p).addScaledVector(inward,depth+.12);
+    // The repair point must stay reachable from the aisle even when furniture sits against the breach.
+    if(Math.abs(target.position.x)>2.2){target.position.x=Math.sign(target.position.x)*2.2;target.position.y=Math.min(2.4,Math.max(1.1,target.position.y));}ship.add(target);interactive(target,'damage-'+damage.id,'船体損傷 / 点検・応急修理','damage');target.userData.damage=damage.id;
+    const leakPos=[];for(let i=0;i<38;i++)leakPos.push((random()-.5)*.3,(random()-.5)*.3,-random()*2);
     const geo=new T.BufferGeometry();geo.setAttribute('position',new T.Float32BufferAttribute(leakPos,3));const leak=new T.Points(geo,new T.PointsMaterial({color:0xc7e2e1,size:.026,transparent:true,opacity:.65,depthWrite:false}));group.add(leak);
     const outerTarget=new T.Mesh(new T.SphereGeometry(.32,12,8),target.material);outerTarget.position.copy(p).addScaledVector(inward,-.12);ship.add(outerTarget);interactive(outerTarget,'damage-'+damage.id,'外板損傷 / 点検・応急封止','damage');outerTarget.userData.damage=damage.id;
     W.damageVisuals.push({id:damage.id,group,target,outerTarget,hot,leak,scar});
     // An impact near the front also fractures the actual windshield plane.
-    if(p.z<0){const side=p.x>0?1:-1;for(let i=0;i<7;i++){const pts=[[side*2.2,1.8,-7.055]];for(let j=1;j<4;j++)pts.push([side*2.2+Math.cos(i*.87)*j*.23+(random()-.5)*.1,1.8+Math.sin(i*.87)*j*.26,-7.055]);W.damageCracks.push(tube(pts,.006,new T.MeshBasicMaterial({color:0xaec5ca,transparent:true,opacity:.45})));}}
+    if(p.z<-3){const side=p.x>0?1:-1,cy=Math.min(3,Math.max(.9,p.y));for(let i=0;i<7;i++){const pts=[[side*2.2,cy,-7.055]];for(let j=1;j<4;j++)pts.push([side*2.2+Math.cos(i*.87)*j*.23+(random()-.5)*.1,cy+Math.sin(i*.87)*j*.26,-7.055]);W.damageCracks.push(tube(pts,.006,new T.MeshBasicMaterial({color:0xaec5ca,transparent:true,opacity:.45})));}}
   };
   W.restoreHull=function(){
     for(const mesh of W.hull){mesh.geometry.attributes.position.array.set(mesh.userData.original);mesh.geometry.attributes.position.needsUpdate=true;mesh.geometry.setIndex(mesh.userData.originalIndex.slice());mesh.geometry.computeVertexNormals();}
@@ -387,8 +402,7 @@ window.B29 = (() => {
   }
   // Navigation labels face both directions, not just the departing camera.
   for(const [z,title,sub] of [[.66,'02 / HABITAT','GALLEY  /  HYGIENE'],[6.0,'03 / QUARTERS','REST  /  ENGINEERING'],[10.65,'04 / AIRLOCK','SAFE HAVEN  /  EVA']]){
-    facePanel(-2.45,1.85,z-.015,1.05,.42,Math.PI,title,sub);
-    facePanel(2.45,1.85,z-.015,1.05,.42,Math.PI,title,sub);
+    for(const x of [-2.45,2.45]){facePanel(x,1.85,z-.09,1.05,.42,Math.PI,title,sub);facePanel(x,1.85,z+.09,1.05,.42,0,title,sub);}
     for(const side of [-1,1]){for(let i=0;i<5;i++)box(.13,.025,.1,side*1.83,.24+i*.14,z,M.orange);}
   }
   // Visible load paths: articulated monitor mounts and triangular shelf brackets.
@@ -470,7 +484,7 @@ window.B29 = (() => {
   }
   // Rear compartment: tank straps, hatch dogs and glove-friendly handrails.
   for(const x of [-.55,.55]){cyl(.19,.19,1.38,x,.99,13.92,insulation);for(const y of [.5,1.42])cyl(.2,.2,.075,x,y,13.92,M.dark);cyl(.055,.055,.13,x,1.73,13.92,brass);}
-  facePanel(-.55,1.01,13.705,.25,.44,Math.PI,'O₂','RESERVE / 01','warning');
+  facePanel(-.55,1.01,13.705,.25,.44,Math.PI,'O₂','RESERVE / 01','warning');for(const x of [-.55,.55])collider(x,13.92,.4,.4);collider(2.45,12.75,.8,.5);collider(1.99,9.35,.55,.42);
   for(const side of [-1,1])beam([side*.99,.54,14.4],[side*.99,2.0,14.4],.036,M.orange);
   for(let i=0;i<10;i++){const a=i/10*Math.PI*2;box(.09,.12,.08,Math.cos(a)*.91,1.25+Math.sin(a)*.91,15.31,M.pipe);}
   // The suit is still a removable interactive group; never bake its details.
@@ -710,8 +724,8 @@ window.B29 = (() => {
     for(const dz of [-.085,.085])box(3.1,.007,.028,0,.001,z+dz,M.pipe);
   }
   for(const z of [2.1,4.2,8.0,9.6]){
-    box(.67,.48,1.17,-2.64,3.45,z,insulation);
-    for(const dz of [-.42,.42]){box(.7,.032,.045,-2.64,3.195,z+dz,leather);box(.1,.035,.1,-2.49,3.169,z+dz,M.pipe);}
+    box(.67,.48,1.17,-2.3,3.0,z,insulation);
+    for(const dz of [-.42,.42]){box(.7,.032,.045,-2.3,2.745,z+dz,leather);box(.1,.035,.1,-2.15,2.719,z+dz,M.pipe);}
   }
   const cabinDetails={water,cabinet,cabinetObstacle,taskLight,taskBulb};
   W.setHabitat=(action)=>{

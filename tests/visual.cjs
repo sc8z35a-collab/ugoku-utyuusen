@@ -57,10 +57,11 @@ function deterministicFrames() {
 async function capture(page, name) {
   if (quick) return;
   // Capture directly without waiting for the application's manually stepped RAF.
-  const session = await page.context().newCDPSession(page);
+  // Detaching a fresh CDP session resets Playwright's mobile/touch emulation (pointer:coarse),
+  // so keep one session per page for the whole run.
+  const session = page.__captureSession || (page.__captureSession = await page.context().newCDPSession(page));
   const image = await session.send('Page.captureScreenshot', { format: 'png' });
   fs.writeFileSync(path.join(output, `${name}.png`), Buffer.from(image.data, 'base64'));
-  await session.detach();
   report.screenshots.push(name);
   console.log(`CAPTURE ${name}`);
 }

@@ -1,0 +1,10 @@
+const {open,launch,view}=require('./harness.cjs');
+(async()=>{const b=await launch();const {page}=await open(b,{query:'?check=1&view=cabin'});
+await page.evaluate(()=>{__g.state.speed=0;});
+await view(page,'y_airlock_gap_out',[0,-.3,18.5],[0,.5,15.4]);
+await view(page,'y_airlock_gap_in',[0,1.0,13.9],[0,.3,15.6]);
+await view(page,'y_locker_monitor',[-1.4,1.62,13.2],[-2.9,1.6,13.4]);
+await view(page,'y_label_back',[-1.2,1.8,7.4],[-2.45,1.85,6.1]);
+await view(page,'y_loose_berth',[-1.4,1.0,9.6],[-2.6,.2,9.5]);
+await view(page,'y_loose_rack',[1.6,.9,7.8],[2.7,.2,7.77]);
+await b.close();})().catch(e=>{console.error(e);process.exit(1)});

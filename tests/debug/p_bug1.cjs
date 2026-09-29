@@ -1,0 +1,11 @@
+const {open,launch}=require('./harness.cjs');
+(async()=>{const b=await launch();const o=[];
+const {page,context}=await open(b,{query:'?check=1',viewport:{width:844,height:390},context:{hasTouch:true,isMobile:true},hook:false});
+const st=async l=>o.push(l+': '+await page.evaluate(()=>{const p=document.getElementById('move-pad');const r=p.getBoundingClientRect();return [getComputedStyle(p).display,Math.round(r.x),Math.round(r.y),r.width,innerWidth,innerHeight,document.querySelector('dialog[open]')?.id,getComputedStyle(document.getElementById('game-hud')).display].join(',')})+' bbox='+JSON.stringify(await page.locator('#move-pad').boundingBox()));
+await st('start');
+await page.evaluate(() => { document.documentElement.requestFullscreen=()=>Promise.reject(new Error('Blocked')); });
+await page.locator('#fullscreen-button').click();await st('afterBlocked');
+await page.locator('#fullscreen-help .dialog-close').click();await st('afterClose');
+await page.evaluate(() => { delete document.documentElement.requestFullscreen; });
+await page.locator('#seat-button').click(); await page.evaluate(() => window.__step());await st('afterSeat');
+console.log(o.join('\n'));await b.close();})().catch(e=>{console.error(e);process.exit(1)});

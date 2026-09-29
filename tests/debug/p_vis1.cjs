@@ -1,0 +1,10 @@
+const {open,launch,view}=require('./harness.cjs');
+(async()=>{const b=await launch();const {page}=await open(b,{query:'?check=1&view=cabin'});
+await page.evaluate(()=>{__g.state.speed=0;B29.chair.visible=true;});
+await view(page,'v_under',[0,-12,6],[0,0,6]);
+await view(page,'v_side_low',[18,-3,5],[0,-1,5]);
+await view(page,'v_front_low',[0,-1,-16],[0,-.5,0]);
+await view(page,'v_cockpit_up',[0,1.65,-5],[0,6,-5.5]);
+await view(page,'v_pipes_front',[0,-1.3,1],[0,-1.3,-10]);
+await view(page,'v_top',[0,14,5],[0,0,5.01]);
+await b.close();})().catch(e=>{console.error(e);process.exit(1)});

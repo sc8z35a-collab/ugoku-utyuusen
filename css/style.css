@@ -48,3 +48,4 @@ dialog p{font-size:12px;line-height:2;color:#b1c0c2}
 @media(orientation:portrait) and (max-width:650px){.topbar{top:max(12px,env(safe-area-inset-top));right:max(14px,env(safe-area-inset-right))}.guide-grid{grid-template-columns:1fr}dialog{padding:26px 24px}.asphalt-message{bottom:155px;max-width:calc(100% - 40px)}.eva .touch-actions{display:grid;grid-template-columns:repeat(2,46px)}}
 @media(max-height:500px){.topbar{top:max(10px,env(safe-area-inset-top))}.asphalt-message{bottom:18px}.icon-button{width:44px;height:44px}.move-pad{bottom:max(18px,env(safe-area-inset-bottom))}}
 @media(prefers-reduced-motion:reduce){*{transition:none!important}}
+.load-failed .game-hud,.load-failed .topbar{display:none}
