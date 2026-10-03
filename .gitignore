@@ -6,3 +6,7 @@ artifacts/
 baseline/
 production-check/
 .cache_sheet*.png
+.autosave.pid
+.autosave.log
+node_modules/
+.cache_*.png
